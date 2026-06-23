@@ -720,7 +720,8 @@
                 <div class="sidebar-menu">
                     <div class="sidebar-section-title">👥 Telegram Groups</div>
                     <div id="group-sidebar-controls">
-                        <button class="menu-btn" onclick="openCreateGroupModal()"><i class="fa-solid fa-users"></i> Create Group</button>
+                        <button class="menu-btn" style="width: 100%;" onclick="openCreateGroupModal()"><i class="fa-solid fa-users"></i> Create Group</button>
+                        <div id="persisted-groups-list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;"></div>
                     </div>
                     <div id="group-active-info" style="display: none; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
                         <p style="font-size: 0.85rem; font-weight: bold; color: var(--telegram-blue);" id="sidebar-group-name">Group Name</p>
@@ -916,6 +917,7 @@
                         this.promptJoinGroup(groupId);
                     }, 800);
                 }
+                this.loadPersistedGroups();
             },
             
             promptJoinGroup(groupId) {
@@ -947,6 +949,8 @@
                         isHost: true
                     }]
                 };
+                
+                this.saveGroupToLocalStorage(groupId, name, true, nickname);
                 
                 this.connect(groupId, () => {
                     this.updateGroupUI();
@@ -1045,15 +1049,13 @@
             
             handleMessage(topic, payload) {
                 // Ignore messages sent by self
-                if (payload.senderId === this.clientId && topic !== this.topics.chat) {
+                if (payload.senderId === this.clientId) {
                     return;
                 }
                 
                 if (topic === this.topics.chat) {
-                    if (payload.senderId !== this.clientId) {
-                        printMsg('other-user', `<b>${payload.senderName}:</b> ${payload.text}`, false);
-                        AudioEngine.play(600, 'sine', 0.05, 0.02);
-                    }
+                    printMsg('other-user', `<b>${payload.senderName}:</b> ${payload.text}`, false);
+                    AudioEngine.play(600, 'sine', 0.05, 0.02);
                 } else if (topic === this.topics.control) {
                     this.handleControlMessage(payload);
                 } else if (topic === this.topics.responses) {
@@ -1101,6 +1103,9 @@
                             });
                             
                             this.updateGroupUI();
+                            // Save to local storage for persistence
+                            this.saveGroupToLocalStorage(currentGroup.id, msg.groupName, false, currentGroup.myNickname);
+                            
                             document.getElementById('bot-status-subtext').innerHTML = `Group Chat: <b>${currentGroup.name}</b>`;
                             
                             if (msg.activeQuizState && msg.activeQuizState.running && !activeQuiz.running) {
@@ -1157,6 +1162,25 @@
                             loadChatQuestionCard(targetIdx);
                         }
                         break;
+
+                    case 'MID_LEADERBOARD':
+                        this.showMidLeaderboard(msg.questionNumber, msg.podium);
+                        break;
+
+                    case 'DELETE_GROUP':
+                        if (!currentGroup.isHost) {
+                            printMsg('bot', `⚠️ <b>This group has been permanently deleted by its owner.</b>`, true);
+                            this.removeGroupFromLocalStorage(currentGroup.id);
+                            
+                            if (mqttClient) {
+                                try { mqttClient.end(); } catch(e) {}
+                            }
+                            currentGroup = null;
+                            document.getElementById('bot-status-subtext').innerText = 'bot (simulated)';
+                            this.updateGroupUI();
+                            window.history.pushState({}, document.title, window.location.pathname);
+                        }
+                        break;
                         
                     case 'END_QUIZ':
                         if (!currentGroup.isHost && activeQuiz.running) {
@@ -1176,11 +1200,7 @@
                     this.updateGroupUI();
                 }
                 
-                const answeredText = msg.isCorrect ? 
-                    `<span style="color: var(--success); font-weight: bold;">correctly ✅ (+${marksPositive} pts)</span>` : 
-                    `<span style="color: var(--danger); font-weight: bold;">incorrectly ❌ (-${marksNegative} pts)</span>`;
-                
-                printMsg('bot', `⚡ <b>${msg.name}</b> answered Question ${activeQuiz.currQIdx + 1} ${answeredText}. Current score: <b>${msg.score.toFixed(2)}</b>`, true);
+                // Attempts / correctness spam removed from chat feed as requested!
             },
             
             sendWelcomeMessage() {
@@ -1307,6 +1327,37 @@
                         senderId: this.clientId
                     });
                 }
+            },
+
+            publishMidLeaderboard(questionNum) {
+                if (currentGroup && currentGroup.isHost) {
+                    const sorted = [...currentGroup.members].sort((a, b) => b.score - a.score);
+                    const podium = sorted.map((m, idx) => ({
+                        rank: idx + 1,
+                        name: m.name,
+                        score: m.score,
+                        correct: m.correct,
+                        incorrect: m.incorrect
+                    }));
+                    
+                    this.publish('control', {
+                        type: 'MID_LEADERBOARD',
+                        podium: podium,
+                        questionNumber: questionNum,
+                        senderId: this.clientId
+                    });
+                    
+                    this.showMidLeaderboard(questionNum, podium);
+                }
+            },
+
+            showMidLeaderboard(qNum, podium) {
+                let leadHtml = `📊 <b>Group Leaderboard (After Question ${qNum}):</b><br><br>`;
+                podium.forEach(p => {
+                    const medal = p.rank === 1 ? "🥇" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : "🔹";
+                    leadHtml += `${medal} <b>${p.name}</b>: Score <b>${p.score.toFixed(2)}</b> (Correct: ${p.correct}, Incorrect: ${p.incorrect})<br>`;
+                });
+                printMsg('bot', leadHtml, true);
             },
             
             publishQuizEnd() {
@@ -1452,6 +1503,152 @@
                     groupMembersListSection.style.display = 'none';
                     groupMembersUl.innerHTML = '';
                 }
+                this.loadPersistedGroups();
+            },
+
+            saveGroupToLocalStorage(groupId, name, isHost, nickname) {
+                try {
+                    let groups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
+                    const idx = groups.findIndex(g => g.id === groupId);
+                    if (idx !== -1) {
+                        groups[idx] = { id: groupId, name, isHost, nickname };
+                    } else {
+                        groups.push({ id: groupId, name, isHost, nickname });
+                    }
+                    localStorage.setItem('unigram_groups', JSON.stringify(groups));
+                } catch(e) {
+                    console.error("Error saving group to local storage", e);
+                }
+            },
+            
+            removeGroupFromLocalStorage(groupId) {
+                try {
+                    let groups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
+                    groups = groups.filter(g => g.id !== groupId);
+                    localStorage.setItem('unigram_groups', JSON.stringify(groups));
+                } catch(e) {
+                    console.error("Error removing group from local storage", e);
+                }
+            },
+            
+            loadPersistedGroups() {
+                const listContainer = document.getElementById('persisted-groups-list');
+                if (!listContainer) return;
+                
+                let groups = [];
+                try {
+                    groups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
+                } catch(e) {}
+                
+                listContainer.innerHTML = '';
+                if (groups.length === 0) {
+                    listContainer.innerHTML = '<p style="font-size: 0.7rem; color: var(--text-muted); font-style: italic; text-align: center;">No saved groups</p>';
+                    return;
+                }
+                
+                groups.forEach(g => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'menu-btn';
+                    wrap.style.display = 'flex';
+                    wrap.style.justifyContent = 'space-between';
+                    wrap.style.alignItems = 'center';
+                    wrap.style.padding = '6px 10px';
+                    wrap.style.marginTop = '2px';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.style.cursor = 'pointer';
+                    nameSpan.style.flex = '1';
+                    nameSpan.style.textOverflow = 'ellipsis';
+                    nameSpan.style.overflow = 'hidden';
+                    nameSpan.style.whiteSpace = 'nowrap';
+                    nameSpan.innerHTML = `<i class="fa-solid fa-users"></i> ${g.name} ${g.isHost ? '👑' : ''}`;
+                    nameSpan.onclick = () => {
+                        AudioEngine.click();
+                        if (g.isHost) {
+                            GroupSyncManager.reconnectHost(g.id, g.name, g.nickname);
+                        } else {
+                            GroupSyncManager.joinGroup(g.id, g.nickname);
+                        }
+                    };
+                    
+                    const trash = document.createElement('i');
+                    trash.className = 'fa-solid fa-trash';
+                    trash.style.color = 'var(--danger)';
+                    trash.style.cursor = 'pointer';
+                    trash.style.marginLeft = '8px';
+                    trash.title = g.isHost ? "Delete Group permanently" : "Remove from history";
+                    trash.onclick = (e) => {
+                        e.stopPropagation();
+                        AudioEngine.click();
+                        if (g.isHost) {
+                            if (confirm(`Are you sure you want to permanently delete the group "${g.name}"? This will clear it for everyone.`)) {
+                                GroupSyncManager.deleteGroupPermanently(g.id);
+                            }
+                        } else {
+                            if (confirm(`Remove the group "${g.name}" from your history?`)) {
+                                GroupSyncManager.removeGroupFromLocalStorage(g.id);
+                                if (currentGroup && currentGroup.id === g.id) {
+                                    GroupSyncManager.leave();
+                                } else {
+                                    GroupSyncManager.loadPersistedGroups();
+                                }
+                            }
+                        }
+                    };
+                    
+                    wrap.appendChild(nameSpan);
+                    wrap.appendChild(trash);
+                    listContainer.appendChild(wrap);
+                });
+            },
+            
+            reconnectHost(groupId, name, nickname) {
+                currentGroup = {
+                    id: groupId,
+                    name: name,
+                    isHost: true,
+                    myMemberId: this.clientId,
+                    myNickname: nickname,
+                    members: [{
+                        id: this.clientId,
+                        name: nickname,
+                        score: 0,
+                        correct: 0,
+                        incorrect: 0,
+                        streak: 0,
+                        isOnline: true,
+                        isHost: true
+                    }]
+                };
+                
+                this.connect(groupId, () => {
+                    this.updateGroupUI();
+                    printMsg('bot', `🔌 Reconnected to your group <b>"${name}"</b> as Owner. Invite Link: <code>${this.getInviteLink()}</code>`, true);
+                    this.sendWelcomeMessage();
+                });
+            },
+            
+            deleteGroupPermanently(groupId) {
+                this.removeGroupFromLocalStorage(groupId);
+                
+                if (currentGroup && currentGroup.id === groupId) {
+                    this.publish('control', {
+                        type: 'DELETE_GROUP',
+                        senderId: this.clientId
+                    });
+                    
+                    if (mqttClient) {
+                        try { mqttClient.end(); } catch(e) {}
+                    }
+                    currentGroup = null;
+                    document.getElementById('bot-status-subtext').innerText = 'bot (simulated)';
+                    this.updateGroupUI();
+                    window.history.pushState({}, document.title, window.location.pathname);
+                } else {
+                    this.loadPersistedGroups();
+                }
+                
+                printMsg('bot', `🗑️ Group deleted permanently.`);
             }
         };
 
@@ -2265,6 +2462,12 @@
         // Load Question inside chat feed
         function loadChatQuestionCard(idx) {
             if (!activeQuiz.running) return;
+
+            // Check if we need to show mid-quiz leaderboard (every 5 questions)
+            if (currentGroup && currentGroup.isHost && idx > 0 && idx % 5 === 0) {
+                GroupSyncManager.publishMidLeaderboard(idx);
+            }
+
             if (idx >= activeQuiz.questions.length) {
                 if (currentGroup && currentGroup.isHost) {
                     nextQuestionTimeout = setTimeout(() => GroupSyncManager.publishQuizEnd(), 1200);
