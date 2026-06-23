@@ -16,6 +16,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- MQTT.js for Real-Time Telegram-like Groups -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <style>
         :root {
@@ -717,6 +721,22 @@
                     <i class="fa-brands fa-telegram"></i>
                     <h2>Bot Command Console</h2>
                 </div>
+
+                <!-- Firebase User Profile Card -->
+                <div id="user-profile-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; margin: 0 5px 15px 5px; text-align: center;">
+                    <div style="display: flex; align-items: center; gap: 10px; text-align: left; margin-bottom: 8px;">
+                        <div id="user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bubble-user); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold;">👤</div>
+                        <div style="flex: 1; overflow: hidden;">
+                            <h4 id="user-profile-name" style="font-size: 0.85rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Guest User</h4>
+                            <p id="user-profile-status" style="font-size: 0.72rem; color: var(--text-muted);">Local Mode (Offline)</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-top: 10px;">
+                        <button class="menu-btn" id="auth-action-btn" style="flex: 1; padding: 4px 8px; font-size: 0.72rem; justify-content: center;" onclick="openAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
+                        <button class="menu-btn" style="padding: 4px 8px; font-size: 0.72rem; justify-content: center;" onclick="openSettingsModal()" title="Database Settings"><i class="fa-solid fa-gear"></i> Settings</button>
+                    </div>
+                </div>
+
                 <div class="sidebar-menu">
                     <div class="sidebar-section-title">👥 Telegram Groups</div>
                     <div id="group-sidebar-controls">
@@ -888,6 +908,65 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Authentication Modal (Login / Sign Up) -->
+            <div class="overlay-modal" id="auth-modal">
+                <div class="config-card" style="max-width: 400px;">
+                    <h2 id="auth-modal-title">Cloud Login ☁️</h2>
+                    <p id="auth-modal-desc" style="margin-bottom: 20px;">Access your quizzes and persistent groups from any device</p>
+                    
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="auth-email-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Email Address</label>
+                        <input type="text" id="auth-email-input" placeholder="e.g., student@example.com">
+                    </div>
+                    
+                    <div style="margin-top: 15px; text-align: left;">
+                        <label for="auth-password-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Password</label>
+                        <input type="password" id="auth-password-input" placeholder="Minimum 6 characters" style="width: 100%; padding: 12px 16px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--glass-border); background: #141f29; color: white; font-size: 0.95rem; outline: none; transition: all 0.2s;">
+                    </div>
+                    
+                    <div id="auth-nickname-group" style="margin-top: 15px; text-align: left; display: none;">
+                        <label for="auth-nickname-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Choose a Nickname</label>
+                        <input type="text" id="auth-nickname-input" placeholder="e.g., QuizMaster99">
+                    </div>
+                    
+                    <div style="margin-top: 10px; text-align: right;">
+                        <a href="#" id="auth-toggle-link" style="color: var(--telegram-blue); font-size: 0.78rem; text-decoration: none; font-weight: 600;" onclick="toggleAuthMode(event)">Don't have an account? Sign Up</a>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeAuthModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" id="auth-submit-btn" onclick="submitAuthForm()" style="background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); flex: 1;">Log In</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Settings Modal -->
+            <div class="overlay-modal" id="settings-modal">
+                <div class="config-card" style="max-width: 500px; text-align: left;">
+                    <h2 style="text-align: center; color: var(--telegram-blue); margin-bottom: 10px;">⚙️ Database Settings</h2>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Connect your free Firebase Database to unlock Cloud Sync and persistent groups</p>
+                    
+                    <div style="margin-top: 15px;">
+                        <label for="settings-config-input" style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Firebase Config JSON</label>
+                        <textarea id="settings-config-input" placeholder='Paste your Firebase config object here, e.g.:&#10;{&#10;  "apiKey": "...",&#10;  "authDomain": "...",&#10;  "databaseURL": "...",&#10;  "projectId": "..."&#10;}' style="width: 100%; height: 180px; padding: 12px; border-radius: 10px; border: 1px solid var(--glass-border); background: #141f29; color: white; font-family: monospace; font-size: 0.80rem; outline: none; resize: none; transition: all 0.2s;"></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 15px; background: rgba(36, 129, 204, 0.05); border: 1px solid rgba(36, 129, 204, 0.2); border-radius: 10px; padding: 12px; font-size: 0.78rem; line-height: 1.5; color: #8cb6d9;">
+                        <strong>How to get this Config JSON for free:</strong><br>
+                        1. Go to <a href="https://console.firebase.google.com/" target="_blank" style="color: var(--telegram-blue); text-decoration: underline;">Firebase Console</a> & create a free project.<br>
+                        2. Click <strong>Add Web App</strong>, copy the generated config object, and paste it above.<br>
+                        3. Enable <strong>Email/Password sign-in</strong> under Authentication.<br>
+                        4. Create a <strong>Realtime Database</strong> under build settings.
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeSettingsModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
+                        <button class="primary-btn" onclick="submitSettingsForm()" style="background: linear-gradient(135deg, var(--success), #2ecc71); flex: 1;">Save & Initialize</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -904,10 +983,276 @@
         let currentGroup = null;
         let mqttClient = null;
 
+        const FirebaseSyncManager = {
+            dbEnabled: false,
+            currentUser: null,
+            userNickname: 'Guest',
+
+            init() {
+                const configStr = localStorage.getItem('firebase_config');
+                if (configStr) {
+                    try {
+                        const config = JSON.parse(configStr);
+                        // Avoid double initialization
+                        if (firebase.apps.length === 0) {
+                            firebase.initializeApp(config);
+                        }
+                        this.dbEnabled = true;
+                        console.log("Firebase initialized successfully");
+                        
+                        // Setup Auth Listener
+                        firebase.auth().onAuthStateChanged((user) => {
+                            this.handleAuthStateChange(user);
+                        });
+                    } catch (e) {
+                        console.error("Failed to initialize Firebase", e);
+                        localStorage.removeItem('firebase_config');
+                        alert("Invalid Firebase Configuration. Resetting to Local Mode.");
+                    }
+                } else {
+                    this.updateAuthUI(null);
+                }
+            },
+
+            handleAuthStateChange(user) {
+                if (user) {
+                    this.currentUser = user;
+                    // Get nickname from database
+                    firebase.database().ref(`users/${user.uid}/nickname`).once('value')
+                        .then((snapshot) => {
+                            const nick = snapshot.val();
+                            this.userNickname = nick || user.email.split('@')[0];
+                            localStorage.setItem('group_nickname', this.userNickname);
+                            this.updateAuthUI(user);
+                            this.syncQuizzesFromCloud();
+                            this.syncGroupsFromCloud();
+                        })
+                        .catch(() => {
+                            this.userNickname = user.email.split('@')[0];
+                            localStorage.setItem('group_nickname', this.userNickname);
+                            this.updateAuthUI(user);
+                            this.syncQuizzesFromCloud();
+                            this.syncGroupsFromCloud();
+                        });
+                } else {
+                    this.currentUser = null;
+                    this.userNickname = 'Guest';
+                    this.updateAuthUI(null);
+                }
+            },
+
+            updateAuthUI(user) {
+                const nameEl = document.getElementById('user-profile-name');
+                const statusEl = document.getElementById('user-profile-status');
+                const actionBtn = document.getElementById('auth-action-btn');
+
+                if (user) {
+                    nameEl.innerText = this.userNickname;
+                    statusEl.innerHTML = `<span style="color: var(--success);">●</span> Cloud Mode (Online)`;
+                    actionBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
+                    actionBtn.onclick = () => FirebaseSyncManager.signOut();
+                } else {
+                    nameEl.innerText = 'Guest User';
+                    if (this.dbEnabled) {
+                        statusEl.innerHTML = `<span style="color: var(--gold);">●</span> Cloud Mode (Logged Out)`;
+                        actionBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
+                        actionBtn.onclick = () => openAuthModal();
+                    } else {
+                        statusEl.innerText = 'Local Mode (Offline)';
+                        actionBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
+                        actionBtn.onclick = () => {
+                            alert("Please configure your Firebase Database in settings first to enable login!");
+                            openSettingsModal();
+                        };
+                    }
+                }
+                
+                // Rebuild persisted groups list
+                if (typeof GroupSyncManager !== 'undefined' && GroupSyncManager.loadPersistedGroups) {
+                    GroupSyncManager.loadPersistedGroups();
+                }
+            },
+
+            syncQuizzesFromCloud() {
+                if (!this.dbEnabled || !this.currentUser) return;
+                
+                printMsg('bot', "🔄 Synchronizing quizzes from cloud database...");
+                
+                // Sync quizzes
+                firebase.database().ref(`users/${this.currentUser.uid}/quizzes`).once('value')
+                    .then((snapshot) => {
+                        const cloudQuizzes = snapshot.val();
+                        if (cloudQuizzes) {
+                            let addedCount = 0;
+                            Object.keys(cloudQuizzes).forEach((qId) => {
+                                const qObj = cloudQuizzes[qId];
+                                const existingIdx = quizzesDb.findIndex(q => q.id === qId);
+                                if (existingIdx !== -1) {
+                                    quizzesDb[existingIdx] = qObj;
+                                } else {
+                                    quizzesDb.push(qObj);
+                                    addedCount++;
+                                }
+                            });
+                            saveQuizzesToLocalStorage();
+                            printMsg('bot', `✅ Cloud synchronization complete! Synced ${Object.keys(cloudQuizzes).length} quizzes.`);
+                        } else {
+                            // First time login - push existing local quizzes to cloud
+                            this.pushAllLocalQuizzesToCloud();
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Cloud quiz sync failed", err);
+                    });
+            },
+
+            pushQuizToCloud(quiz) {
+                if (this.dbEnabled && this.currentUser) {
+                    firebase.database().ref(`users/${this.currentUser.uid}/quizzes/${quiz.id}`).set(quiz)
+                        .then(() => console.log("Quiz pushed to cloud successfully"))
+                        .catch(err => console.error("Failed to push quiz to cloud", err));
+                }
+            },
+
+            deleteQuizFromCloud(quizId) {
+                if (this.dbEnabled && this.currentUser) {
+                    firebase.database().ref(`users/${this.currentUser.uid}/quizzes/${quizId}`).remove()
+                        .then(() => console.log("Quiz removed from cloud successfully"))
+                        .catch(err => console.error("Failed to remove quiz from cloud", err));
+                }
+            },
+
+            pushAllLocalQuizzesToCloud() {
+                if (this.dbEnabled && this.currentUser && quizzesDb.length > 0) {
+                    const quizzesObj = {};
+                    quizzesDb.forEach(q => {
+                        quizzesObj[q.id] = q;
+                    });
+                    firebase.database().ref(`users/${this.currentUser.uid}/quizzes`).update(quizzesObj)
+                        .then(() => console.log("All local quizzes synced to cloud"))
+                        .catch(err => console.error("Failed syncing all local quizzes", err));
+                }
+            },
+
+            syncGroupsFromCloud() {
+                if (!this.dbEnabled || !this.currentUser) return;
+                
+                firebase.database().ref(`users/${this.currentUser.uid}/groups`).once('value')
+                    .then((snapshot) => {
+                        const cloudGroups = snapshot.val();
+                        if (cloudGroups) {
+                            let localGroups = [];
+                            try {
+                                localGroups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
+                            } catch(e) {}
+                            
+                            Object.keys(cloudGroups).forEach((gId) => {
+                                const gObj = cloudGroups[gId];
+                                const existingIdx = localGroups.findIndex(g => g.id === gId);
+                                if (existingIdx !== -1) {
+                                    localGroups[existingIdx] = gObj;
+                                } else {
+                                    localGroups.push(gObj);
+                                }
+                            });
+                            localStorage.setItem('unigram_groups', JSON.stringify(localGroups));
+                            
+                            if (typeof GroupSyncManager !== 'undefined' && GroupSyncManager.loadPersistedGroups) {
+                                GroupSyncManager.loadPersistedGroups();
+                            }
+                        } else {
+                            // First time login - push existing local groups to cloud
+                            this.pushAllLocalGroupsToCloud();
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Cloud group sync failed", err);
+                    });
+            },
+
+            pushGroupToCloud(groupId, name, isHost, nickname) {
+                if (this.dbEnabled && this.currentUser) {
+                    const groupData = { id: groupId, name, isHost, nickname };
+                    firebase.database().ref(`users/${this.currentUser.uid}/groups/${groupId}`).set(groupData)
+                        .then(() => console.log("Group reference pushed to cloud successfully"))
+                        .catch(err => console.error("Failed to push group to cloud", err));
+                }
+            },
+
+            deleteGroupFromCloud(groupId) {
+                if (this.dbEnabled && this.currentUser) {
+                    firebase.database().ref(`users/${this.currentUser.uid}/groups/${groupId}`).remove()
+                        .then(() => console.log("Group reference removed from cloud successfully"))
+                        .catch(err => console.error("Failed to remove group from cloud", err));
+                }
+            },
+
+            pushAllLocalGroupsToCloud() {
+                let localGroups = [];
+                try {
+                    localGroups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
+                } catch(e) {}
+                
+                if (this.dbEnabled && this.currentUser && localGroups.length > 0) {
+                    const groupsObj = {};
+                    localGroups.forEach(g => {
+                        groupsObj[g.id] = g;
+                    });
+                    firebase.database().ref(`users/${this.currentUser.uid}/groups`).update(groupsObj)
+                        .then(() => console.log("All local groups synced to cloud"))
+                        .catch(err => console.error("Failed syncing all local groups", err));
+                }
+            },
+
+            signIn(email, password, callback) {
+                if (!this.dbEnabled) return;
+                firebase.auth().signInWithEmailAndPassword(email, password)
+                    .then((result) => {
+                        callback(null, result.user);
+                    })
+                    .catch((err) => {
+                        callback(err);
+                    });
+            },
+
+            signUp(email, password, nickname, callback) {
+                if (!this.dbEnabled) return;
+                firebase.auth().createUserWithEmailAndPassword(email, password)
+                    .then((result) => {
+                        const user = result.user;
+                        firebase.database().ref(`users/${user.uid}/nickname`).set(nickname)
+                            .then(() => {
+                                this.userNickname = nickname;
+                                localStorage.setItem('group_nickname', nickname);
+                                callback(null, user);
+                            })
+                            .catch((err) => {
+                                // Fallback if nickname save fails
+                                callback(null, user);
+                            });
+                    })
+                    .catch((err) => {
+                        callback(err);
+                    });
+            },
+
+            signOut() {
+                if (!this.dbEnabled) return;
+                firebase.auth().signOut()
+                    .then(() => {
+                        printMsg('bot', "🚪 You have logged out of your cloud account.");
+                    });
+            }
+        };
+
         const GroupSyncManager = {
             clientId: 'client_' + Math.floor(Math.random() * 1000000),
             topics: {},
             
+            get isFirebaseMode() {
+                return FirebaseSyncManager.dbEnabled;
+            },
+
             init() {
                 // Check if there is a group parameter in URL
                 const urlParams = new URLSearchParams(window.location.search);
@@ -954,6 +1299,33 @@
                 
                 this.connect(groupId, () => {
                     this.updateGroupUI();
+                    
+                    if (this.isFirebaseMode) {
+                        const initialMemberObj = {};
+                        initialMemberObj[this.clientId] = {
+                            id: this.clientId,
+                            name: nickname,
+                            score: 0,
+                            correct: 0,
+                            incorrect: 0,
+                            streak: 0,
+                            isOnline: true,
+                            isHost: true
+                        };
+                        
+                        this.fbRefs.group.set({
+                            meta: {
+                                id: groupId,
+                                name: name,
+                                hostId: this.clientId,
+                                hostNickname: nickname
+                            },
+                            members: initialMemberObj,
+                            control: { type: 'CREATED', senderId: this.clientId },
+                            chat: {}
+                        });
+                    }
+
                     printMsg('bot', `🎉 <b>Group "${name}" Created!</b><br><br>Share this link with your friends to invite them:<br><code>${this.getInviteLink()}</code><br><br>Use the sidebar to manage the group, or start a quiz!`, true, [
                         { label: "Copy Invite Link 🔗", action: () => copyGroupInviteLink() }
                     ]);
@@ -983,19 +1355,58 @@
                 
                 this.connect(groupId, () => {
                     this.updateGroupUI();
-                    // Publish JOIN message
-                    this.publish('control', {
-                        type: 'JOIN',
-                        memberId: this.clientId,
-                        name: nickname
-                    });
-                    printMsg('bot', `🔌 Connecting to group chat...`);
+                    
+                    if (this.isFirebaseMode) {
+                        const myMemberInfo = {
+                            id: this.clientId,
+                            name: nickname,
+                            score: 0,
+                            correct: 0,
+                            incorrect: 0,
+                            streak: 0,
+                            isOnline: true,
+                            isHost: false
+                        };
+                        this.fbRefs.members.child(this.clientId).set(myMemberInfo);
+                        
+                        this.fbRefs.chat.push({
+                            senderId: 'system',
+                            senderName: 'System',
+                            text: `📢 <b>${nickname}</b> joined the group!`,
+                            timestamp: Date.now()
+                        });
+                        
+                        this.fbRefs.control.once('value').then(snapshot => {
+                            const control = snapshot.val();
+                            if (control && control.type === 'START_QUIZ' && !activeQuiz.running) {
+                                return this.fbRefs.group.child('activeQuizState').once('value');
+                            }
+                        }).then(quizStateSnap => {
+                            if (quizStateSnap && quizStateSnap.exists()) {
+                                const state = quizStateSnap.val();
+                                if (state && state.running) {
+                                    this.syncActiveQuizState(state);
+                                }
+                            }
+                        });
+                        
+                        printMsg('bot', `🔌 Connected to group chat via Cloud Database...`);
+                    } else {
+                        // Publish JOIN message
+                        this.publish('control', {
+                            type: 'JOIN',
+                            memberId: this.clientId,
+                            name: nickname
+                        });
+                        printMsg('bot', `🔌 Connecting to group chat...`);
+                    }
                 });
             },
             
             connect(groupId, onConnectCallback) {
                 if (mqttClient) {
                     try { mqttClient.end(); } catch(e) {}
+                    mqttClient = null;
                 }
                 
                 this.topics = {
@@ -1004,45 +1415,125 @@
                     responses: `unigram/quizbot/groups/${groupId}/responses`
                 };
                 
-                // Connect to HiveMQ Public Secure WebSocket MQTT Broker
-                mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
-                    clientId: this.clientId,
-                    keepalive: 60,
-                    clean: true
-                });
-                
-                mqttClient.on('connect', () => {
-                    console.log('Connected to MQTT Broker');
-                    mqttClient.subscribe(Object.values(this.topics), (err) => {
-                        if (!err) {
-                            console.log('Subscribed to all group topics');
-                            if (onConnectCallback) onConnectCallback();
-                        } else {
-                            printMsg('bot', `❌ Failed to subscribe to group topics: ${err.message}`);
+                if (this.isFirebaseMode) {
+                    console.log('Connecting to Firebase Database for group sync');
+                    
+                    this.fbRefs = {
+                        group: firebase.database().ref(`groups/${groupId}`),
+                        meta: firebase.database().ref(`groups/${groupId}/meta`),
+                        members: firebase.database().ref(`groups/${groupId}/members`),
+                        chat: firebase.database().ref(`groups/${groupId}/chat`),
+                        control: firebase.database().ref(`groups/${groupId}/control`),
+                        responses: firebase.database().ref(`groups/${groupId}/responses`)
+                    };
+                    
+                    // Listen to meta
+                    this.fbRefs.meta.on('value', (snapshot) => {
+                        const meta = snapshot.val();
+                        if (meta && currentGroup && !currentGroup.isHost) {
+                            currentGroup.name = meta.name;
+                            this.updateGroupUI();
                         }
                     });
-                });
-                
-                mqttClient.on('message', (topic, message) => {
-                    try {
-                        const payload = JSON.parse(message.toString());
-                        this.handleMessage(topic, payload);
-                    } catch (e) {
-                        console.error('Error handling MQTT message:', e);
-                    }
-                });
-                
-                mqttClient.on('error', (err) => {
-                    console.error('MQTT Error:', err);
-                    printMsg('bot', `⚠️ Real-Time Sync Connection Error. Trying to reconnect...`);
-                });
+                    
+                    // Listen to members
+                    this.fbRefs.members.on('value', (snapshot) => {
+                        const membersVal = snapshot.val();
+                        if (membersVal && currentGroup) {
+                            const newMembers = [];
+                            const mySelf = currentGroup.members.find(m => m.id === this.clientId);
+                            
+                            Object.keys(membersVal).forEach(mId => {
+                                const m = membersVal[mId];
+                                newMembers.push(m);
+                            });
+                            
+                            if (mySelf && !newMembers.some(m => m.id === this.clientId)) {
+                                newMembers.push(mySelf);
+                            }
+                            
+                            currentGroup.members = newMembers;
+                            this.updateGroupUI();
+                        }
+                    });
+                    
+                    // Listen to chat (only new messages)
+                    const connectTime = Date.now();
+                    this.fbRefs.chat.orderByChild('timestamp').startAt(connectTime).on('child_added', (snapshot) => {
+                        const msg = snapshot.val();
+                        if (msg && msg.senderId !== this.clientId) {
+                            printMsg('other-user', `<b>${msg.senderName}:</b> ${msg.text}`, false);
+                            AudioEngine.play(600, 'sine', 0.05, 0.02);
+                        }
+                    });
+                    
+                    // Listen to control
+                    this.fbRefs.control.on('value', (snapshot) => {
+                        const msg = snapshot.val();
+                        if (msg && msg.senderId !== this.clientId) {
+                            this.handleControlMessage(msg);
+                        }
+                    });
+                    
+                    if (onConnectCallback) onConnectCallback();
+                } else {
+                    // Connect to HiveMQ Public Secure WebSocket MQTT Broker
+                    mqttClient = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', {
+                        clientId: this.clientId,
+                        keepalive: 60,
+                        clean: true
+                    });
+                    
+                    mqttClient.on('connect', () => {
+                        console.log('Connected to MQTT Broker');
+                        mqttClient.subscribe(Object.values(this.topics), (err) => {
+                            if (!err) {
+                                console.log('Subscribed to all group topics');
+                                if (onConnectCallback) onConnectCallback();
+                            } else {
+                                printMsg('bot', `❌ Failed to subscribe to group topics: ${err.message}`);
+                            }
+                        });
+                    });
+                    
+                    mqttClient.on('message', (topic, message) => {
+                        try {
+                            const payload = JSON.parse(message.toString());
+                            this.handleMessage(topic, payload);
+                        } catch (e) {
+                            console.error('Error handling MQTT message:', e);
+                        }
+                    });
+                    
+                    mqttClient.on('error', (err) => {
+                        console.error('MQTT Error:', err);
+                        printMsg('bot', `⚠️ Real-Time Sync Connection Error. Trying to reconnect...`);
+                    });
+                }
             },
             
             publish(channelKey, payload) {
-                if (mqttClient && mqttClient.connected) {
-                    const topic = this.topics[channelKey];
-                    if (topic) {
-                        mqttClient.publish(topic, JSON.stringify(payload), { qos: 0 });
+                if (this.isFirebaseMode) {
+                    if (!this.fbRefs) return;
+                    
+                    if (!payload.senderId) {
+                        payload.senderId = this.clientId;
+                    }
+                    
+                    if (channelKey === 'control') {
+                        this.fbRefs.control.set(payload);
+                    } else if (channelKey === 'chat') {
+                        payload.timestamp = Date.now();
+                        this.fbRefs.chat.push(payload);
+                    } else if (channelKey === 'responses') {
+                        this.fbRefs.responses.child(payload.memberId).set(payload);
+                    }
+                } else {
+                    if (mqttClient && mqttClient.connected) {
+                        const topic = this.topics[channelKey];
+                        if (topic) {
+                            mqttClient.publish(topic, JSON.stringify(payload), { qos: 0 });
+                        }
                     }
                 }
             },
@@ -1280,7 +1771,7 @@
                     marksPositive = pos;
                     marksNegative = neg;
                     
-                    this.publish('control', {
+                    const quizPayload = {
                         type: 'START_QUIZ',
                         quizId: quizId,
                         quizName: quizObj.name,
@@ -1289,7 +1780,34 @@
                         marksNegative: neg,
                         questions: quizObj.questions,
                         senderId: this.clientId
-                    });
+                    };
+                    
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        // Clear responses
+                        this.fbRefs.responses.remove();
+                        // Reset all members scores/stats to 0 in database
+                        currentGroup.members.forEach(m => {
+                            this.fbRefs.members.child(m.id).update({
+                                score: 0,
+                                correct: 0,
+                                incorrect: 0,
+                                streak: 0
+                            });
+                        });
+                        // Set activeQuizState in database
+                        this.fbRefs.group.child('activeQuizState').set({
+                            running: true,
+                            quizId: quizId,
+                            quizName: quizObj.name,
+                            currQIdx: 0,
+                            timerLimit: timerSec,
+                            marksPositive: pos,
+                            marksNegative: neg,
+                            questions: quizObj.questions
+                        });
+                    }
+                    
+                    this.publish('control', quizPayload);
                     
                     startActiveQuizSession();
                 }
@@ -1297,6 +1815,9 @@
             
             publishQuestion(idx) {
                 if (currentGroup && currentGroup.isHost) {
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        this.fbRefs.group.child('activeQuizState/currQIdx').set(idx);
+                    }
                     this.publish('control', {
                         type: 'QUESTION',
                         idx: idx,
@@ -1314,6 +1835,15 @@
                         mySelf.incorrect = incorrect;
                         mySelf.streak = streak;
                         this.updateGroupUI();
+                    }
+                    
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        this.fbRefs.members.child(this.clientId).update({
+                            score: score,
+                            correct: correct,
+                            incorrect: incorrect,
+                            streak: streak
+                        });
                     }
                     
                     this.publish('responses', {
@@ -1371,6 +1901,10 @@
                         incorrect: m.incorrect
                     }));
                     
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        this.fbRefs.group.child('activeQuizState').remove();
+                    }
+                    
                     this.publish('control', {
                         type: 'END_QUIZ',
                         podium: podium,
@@ -1420,14 +1954,27 @@
             
             leave() {
                 if (currentGroup) {
-                    this.publish('control', {
-                        type: 'LEAVE',
-                        memberId: this.clientId,
-                        senderId: this.clientId
-                    });
-                    
-                    if (mqttClient) {
-                        try { mqttClient.end(); } catch(e) {}
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        this.fbRefs.members.child(this.clientId).child('isOnline').set(false);
+                        this.fbRefs.chat.push({
+                            senderId: 'system',
+                            senderName: 'System',
+                            text: `📢 <b>${currentGroup.myNickname}</b> left the group.`,
+                            timestamp: Date.now()
+                        });
+                        Object.keys(this.fbRefs).forEach(key => {
+                            this.fbRefs[key].off();
+                        });
+                        this.fbRefs = null;
+                    } else {
+                        this.publish('control', {
+                            type: 'LEAVE',
+                            memberId: this.clientId,
+                            senderId: this.clientId
+                        });
+                        if (mqttClient) {
+                            try { mqttClient.end(); } catch(e) {}
+                        }
                     }
                     
                     currentGroup = null;
@@ -1516,6 +2063,10 @@
                         groups.push({ id: groupId, name, isHost, nickname });
                     }
                     localStorage.setItem('unigram_groups', JSON.stringify(groups));
+                    
+                    if (FirebaseSyncManager.dbEnabled && FirebaseSyncManager.currentUser) {
+                        FirebaseSyncManager.pushGroupToCloud(groupId, name, isHost, nickname);
+                    }
                 } catch(e) {
                     console.error("Error saving group to local storage", e);
                 }
@@ -1526,6 +2077,10 @@
                     let groups = JSON.parse(localStorage.getItem('unigram_groups') || '[]');
                     groups = groups.filter(g => g.id !== groupId);
                     localStorage.setItem('unigram_groups', JSON.stringify(groups));
+                    
+                    if (FirebaseSyncManager.dbEnabled && FirebaseSyncManager.currentUser) {
+                        FirebaseSyncManager.deleteGroupFromCloud(groupId);
+                    }
                 } catch(e) {
                     console.error("Error removing group from local storage", e);
                 }
@@ -1623,8 +2178,20 @@
                 
                 this.connect(groupId, () => {
                     this.updateGroupUI();
+                    
+                    if (this.isFirebaseMode) {
+                        this.fbRefs.members.child(this.clientId).child('isOnline').set(true);
+                        this.fbRefs.chat.push({
+                            senderId: 'system',
+                            senderName: 'System',
+                            text: `📢 Host <b>${nickname}</b> reconnected.`,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        this.sendWelcomeMessage();
+                    }
+                    
                     printMsg('bot', `🔌 Reconnected to your group <b>"${name}"</b> as Owner. Invite Link: <code>${this.getInviteLink()}</code>`, true);
-                    this.sendWelcomeMessage();
                 });
             },
             
@@ -1632,14 +2199,31 @@
                 this.removeGroupFromLocalStorage(groupId);
                 
                 if (currentGroup && currentGroup.id === groupId) {
-                    this.publish('control', {
-                        type: 'DELETE_GROUP',
-                        senderId: this.clientId
-                    });
-                    
-                    if (mqttClient) {
-                        try { mqttClient.end(); } catch(e) {}
+                    if (this.isFirebaseMode && this.fbRefs) {
+                        this.publish('control', {
+                            type: 'DELETE_GROUP',
+                            senderId: this.clientId
+                        });
+                        
+                        const dbRef = this.fbRefs.group;
+                        Object.keys(this.fbRefs).forEach(key => {
+                            this.fbRefs[key].off();
+                        });
+                        this.fbRefs = null;
+                        
+                        dbRef.remove()
+                            .then(() => console.log("Group removed from Firebase DB"))
+                            .catch(err => console.error("Error removing group from Firebase DB:", err));
+                    } else {
+                        this.publish('control', {
+                            type: 'DELETE_GROUP',
+                            senderId: this.clientId
+                        });
+                        if (mqttClient) {
+                            try { mqttClient.end(); } catch(e) {}
+                        }
                     }
+                    
                     currentGroup = null;
                     document.getElementById('bot-status-subtext').innerText = 'bot (simulated)';
                     this.updateGroupUI();
@@ -1717,6 +2301,119 @@
             }
         }
 
+        // --- AUTH & SETTINGS MODAL UI HANDLERS ---
+        function openAuthModal() {
+            AudioEngine.click();
+            document.getElementById('auth-email-input').value = '';
+            document.getElementById('auth-password-input').value = '';
+            document.getElementById('auth-nickname-input').value = '';
+            setAuthMode('login');
+            document.getElementById('auth-modal').classList.add('active');
+        }
+        function closeAuthModal() {
+            AudioEngine.click();
+            document.getElementById('auth-modal').classList.remove('active');
+        }
+        let authMode = 'login';
+        function setAuthMode(mode) {
+            authMode = mode;
+            const titleEl = document.getElementById('auth-modal-title');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            const toggleLink = document.getElementById('auth-toggle-link');
+            const nickGroup = document.getElementById('auth-nickname-group');
+            if (mode === 'login') {
+                titleEl.innerHTML = `Cloud Login ☁️`;
+                submitBtn.innerText = 'Log In';
+                toggleLink.innerText = "Don't have an account? Sign Up";
+                nickGroup.style.display = 'none';
+            } else {
+                titleEl.innerHTML = `Create Account ☁️`;
+                submitBtn.innerText = 'Sign Up';
+                toggleLink.innerText = "Already have an account? Log In";
+                nickGroup.style.display = 'block';
+            }
+        }
+        function toggleAuthMode(e) {
+            if (e) e.preventDefault();
+            AudioEngine.click();
+            setAuthMode(authMode === 'login' ? 'signup' : 'login');
+        }
+        function submitAuthForm() {
+            AudioEngine.click();
+            const email = document.getElementById('auth-email-input').value.trim();
+            const password = document.getElementById('auth-password-input').value.trim();
+            const nickname = document.getElementById('auth-nickname-input').value.trim();
+            if (!email || !password) {
+                alert("Please enter both email and password.");
+                return;
+            }
+            if (authMode === 'signup' && !nickname) {
+                alert("Please choose a nickname.");
+                return;
+            }
+            const submitBtn = document.getElementById('auth-submit-btn');
+            const originalText = submitBtn.innerText;
+            submitBtn.innerText = 'Processing...';
+            submitBtn.disabled = true;
+            if (authMode === 'login') {
+                FirebaseSyncManager.signIn(email, password, (err, user) => {
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                    if (err) {
+                        alert("Login failed: " + err.message);
+                    } else {
+                        closeAuthModal();
+                        printMsg('bot', `👋 Welcome back, <b>${FirebaseSyncManager.userNickname}</b>! Successfully logged in.`);
+                    }
+                });
+            } else {
+                FirebaseSyncManager.signUp(email, password, nickname, (err, user) => {
+                    submitBtn.innerText = originalText;
+                    submitBtn.disabled = false;
+                    if (err) {
+                        alert("Sign up failed: " + err.message);
+                    } else {
+                        closeAuthModal();
+                        printMsg('bot', `🎉 Account created successfully! Welcome, <b>${nickname}</b>.`);
+                    }
+                });
+            }
+        }
+
+        function openSettingsModal() {
+            AudioEngine.click();
+            const configStr = localStorage.getItem('firebase_config') || '';
+            document.getElementById('settings-config-input').value = configStr;
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        function closeSettingsModal() {
+            AudioEngine.click();
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+        function submitSettingsForm() {
+            AudioEngine.click();
+            const configVal = document.getElementById('settings-config-input').value.trim();
+            if (configVal) {
+                try {
+                    JSON.parse(configVal); // validate JSON
+                    localStorage.setItem('firebase_config', configVal);
+                    closeSettingsModal();
+                    alert("Firebase configuration saved! The application will now initialize Firebase database mode.");
+                    FirebaseSyncManager.init();
+                } catch(e) {
+                    alert("Invalid JSON format. Please paste a valid Firebase configuration JSON.");
+                }
+            } else {
+                // Clear config
+                localStorage.removeItem('firebase_config');
+                closeSettingsModal();
+                alert("Firebase configuration cleared. Switching back to Local Mode.");
+                FirebaseSyncManager.dbEnabled = false;
+                FirebaseSyncManager.currentUser = null;
+                FirebaseSyncManager.updateAuthUI(null);
+            }
+        }
+
         let quizzesDb = [];
 
         let localStats = {
@@ -1757,6 +2454,7 @@
             }
         }
         initDatabase();
+        FirebaseSyncManager.init();
         GroupSyncManager.init();
 
         // Bot state
@@ -2019,6 +2717,8 @@
                     quizzesDb.push(newQuizObj);
                     // Save to LocalStorage
                     saveQuizzesToLocalStorage();
+                    // Sync to Firebase Cloud
+                    FirebaseSyncManager.pushQuizToCloud(newQuizObj);
                     
                     creationState.active = false;
                     
@@ -2091,6 +2791,7 @@
                         const name = quizzesDb[idx].name;
                         quizzesDb.splice(idx, 1);
                         saveQuizzesToLocalStorage();
+                        FirebaseSyncManager.deleteQuizFromCloud(param);
                         printMsg('bot', `🗑️ Quiz <b>${name}</b> deleted successfully. Remember to export the HTML file to persist changes!`, true);
                     }
                     break;
@@ -2799,6 +3500,7 @@
             const name = quizzesDb[idx].name;
             quizzesDb.splice(idx, 1);
             saveQuizzesToLocalStorage();
+            FirebaseSyncManager.deleteQuizFromCloud(id);
             printMsg('bot', `🗑️ Quiz <b>${name}</b> deleted successfully. Remember to export the HTML file to persist changes!`, true, [
                 { label: "List Quizzes 📋", command: "/list" }
             ]);
