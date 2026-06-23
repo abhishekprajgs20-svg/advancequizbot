@@ -731,9 +731,8 @@
                             <p id="user-profile-status" style="font-size: 0.72rem; color: var(--text-muted);">Local Mode (Offline)</p>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 6px; margin-top: 10px;">
-                        <button class="menu-btn" id="auth-action-btn" style="flex: 1; padding: 4px 8px; font-size: 0.72rem; justify-content: center;" onclick="openAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
-                        <button class="menu-btn" style="padding: 4px 8px; font-size: 0.72rem; justify-content: center;" onclick="openSettingsModal()" title="Database Settings"><i class="fa-solid fa-gear"></i> Settings</button>
+                    <div style="display: flex; margin-top: 10px;">
+                        <button class="menu-btn" id="auth-action-btn" style="flex: 1; padding: 6px 8px; font-size: 0.78rem; justify-content: center; font-weight: bold; background: linear-gradient(135deg, var(--telegram-blue), #50a2e3);" onclick="openAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Login / Register</button>
                     </div>
                 </div>
 
@@ -983,33 +982,58 @@
         let currentGroup = null;
         let mqttClient = null;
 
+        // ==========================================
+        // BUILT-IN FIREBASE CONFIGURATION (CLOUD SYNC)
+        // ==========================================
+        // Replace these placeholders with your Firebase credentials to enable cloud sync automatically for all users.
+        const FIREBASE_CONFIG = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
         const FirebaseSyncManager = {
             dbEnabled: false,
             currentUser: null,
             userNickname: 'Guest',
 
             init() {
+                let config = null;
                 const configStr = localStorage.getItem('firebase_config');
                 if (configStr) {
                     try {
-                        const config = JSON.parse(configStr);
-                        // Avoid double initialization
+                        config = JSON.parse(configStr);
+                    } catch(e) {}
+                }
+                
+                // Fallback to built-in FIREBASE_CONFIG
+                if (!config && typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+                    config = FIREBASE_CONFIG;
+                }
+
+                if (config) {
+                    try {
                         if (firebase.apps.length === 0) {
                             firebase.initializeApp(config);
                         }
                         this.dbEnabled = true;
                         console.log("Firebase initialized successfully");
                         
-                        // Setup Auth Listener
                         firebase.auth().onAuthStateChanged((user) => {
                             this.handleAuthStateChange(user);
                         });
                     } catch (e) {
                         console.error("Failed to initialize Firebase", e);
                         localStorage.removeItem('firebase_config');
-                        alert("Invalid Firebase Configuration. Resetting to Local Mode.");
+                        this.dbEnabled = false;
+                        this.updateAuthUI(null);
                     }
                 } else {
+                    this.dbEnabled = false;
                     this.updateAuthUI(null);
                 }
             },
@@ -1017,7 +1041,6 @@
             handleAuthStateChange(user) {
                 if (user) {
                     this.currentUser = user;
-                    // Get nickname from database
                     firebase.database().ref(`users/${user.uid}/nickname`).once('value')
                         .then((snapshot) => {
                             const nick = snapshot.val();
@@ -1048,26 +1071,25 @@
 
                 if (user) {
                     nameEl.innerText = this.userNickname;
-                    statusEl.innerHTML = `<span style="color: var(--success);">●</span> Cloud Mode (Online)`;
+                    statusEl.innerHTML = `<span style="color: var(--success); font-weight: bold;">●</span> Cloud Mode (Online)`;
                     actionBtn.innerHTML = `<i class="fa-solid fa-right-from-bracket"></i> Logout`;
                     actionBtn.onclick = () => FirebaseSyncManager.signOut();
                 } else {
                     nameEl.innerText = 'Guest User';
                     if (this.dbEnabled) {
-                        statusEl.innerHTML = `<span style="color: var(--gold);">●</span> Cloud Mode (Logged Out)`;
+                        statusEl.innerHTML = `<span style="color: var(--gold); font-weight: bold;">●</span> Cloud Mode (Logged Out)`;
                         actionBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
                         actionBtn.onclick = () => openAuthModal();
                     } else {
                         statusEl.innerText = 'Local Mode (Offline)';
                         actionBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Login`;
                         actionBtn.onclick = () => {
-                            alert("Please configure your Firebase Database in settings first to enable login!");
+                            alert("Welcome! Cloud database is not configured yet.\n\nTo enable cloud sync, please edit the index.html file and replace the FIREBASE_CONFIG placeholders with your Firebase credentials, or configure it via /settings.");
                             openSettingsModal();
                         };
                     }
                 }
                 
-                // Rebuild persisted groups list
                 if (typeof GroupSyncManager !== 'undefined' && GroupSyncManager.loadPersistedGroups) {
                     GroupSyncManager.loadPersistedGroups();
                 }
@@ -2681,6 +2703,11 @@
     }
     printMsg('bot', helpText, true);
     break;
+
+                case '/settings':
+                    openSettingsModal();
+                    printMsg('bot', "⚙️ Opened Database Settings Modal. You can override the default Firebase configuration here.");
+                    break;
 
                 case '/create':
                     if (creationState.active) {
