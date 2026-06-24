@@ -71,7 +71,8 @@
             display: flex;
             flex-direction: column;
             padding: 20px;
-            justify-content: space-between;
+            height: 100%;
+            overflow: hidden;
         }
 
         @media (max-width: 768px) {
@@ -85,6 +86,7 @@
             text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.05);
             padding-bottom: 15px;
+            flex-shrink: 0;
         }
 
         .sidebar-header i {
@@ -98,9 +100,9 @@
             flex-direction: column;
             gap: 4px;
             overflow-y: auto;
-            flex-grow: 1;
+            flex: 1;
             padding-right: 5px;
-            max-height: calc(100vh - 200px);
+            margin-bottom: 15px;
         }
 
         .sidebar-menu::-webkit-scrollbar {
@@ -251,6 +253,12 @@
         @keyframes messageFade {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes gradientWave {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .chat-message.bot {
@@ -710,6 +718,40 @@
         .primary-btn:active {
             transform: translateY(0);
         }
+        
+        /* Lifelines & Poll Styles */
+        .poll-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .poll-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .poll-bar-track {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+        .poll-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            width: 0%;
+            transition: width 1s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+        .lifeline-buttons button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: rgba(120, 120, 120, 0.1) !important;
+            border-color: rgba(120, 120, 120, 0.2) !important;
+            color: var(--text-muted) !important;
+        }
     </style>
 </head>
 <body>
@@ -723,7 +765,7 @@
                 </div>
 
                 <!-- Firebase User Profile Card -->
-                <div id="user-profile-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; margin: 0 5px 15px 5px; text-align: center;">
+                <div id="user-profile-card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 12px; border-radius: 12px; margin: 0 5px 15px 5px; text-align: center; flex-shrink: 0;">
                     <div style="display: flex; align-items: center; gap: 10px; text-align: left; margin-bottom: 8px;">
                         <div id="user-avatar" style="width: 36px; height: 36px; border-radius: 50%; background: var(--bubble-user); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold;">👤</div>
                         <div style="flex: 1; overflow: hidden;">
@@ -763,6 +805,10 @@
                     <button class="menu-btn" onclick="sendMenuCommand('/done')"><i class="fa-solid fa-floppy-disk"></i> /done</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/cancel')"><i class="fa-solid fa-xmark"></i> /cancel</button>
 
+                    <div class="sidebar-section-title">🎨 Settings & Themes</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/settings')"><i class="fa-solid fa-gear"></i> /settings</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/wallpaper')"><i class="fa-solid fa-image"></i> /wallpaper</button>
+
                     <div class="sidebar-section-title">🎮 Quiz Playback</div>
                     <button class="menu-btn" onclick="sendMenuCommand('/quiz')"><i class="fa-solid fa-gamepad"></i> /quiz</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/stop')"><i class="fa-solid fa-stop"></i> /stop</button>
@@ -778,6 +824,8 @@
                     <button class="menu-btn" onclick="sendMenuCommand('/leaderboard')"><i class="fa-solid fa-trophy"></i> /leaderboard</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/result')"><i class="fa-solid fa-clipboard-check"></i> /result</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/compare')"><i class="fa-solid fa-users"></i> /compare</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/wrong')"><i class="fa-solid fa-circle-xmark"></i> /wrong [id]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/correct')"><i class="fa-solid fa-circle-check"></i> /correct [id]</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/features')"><i class="fa-solid fa-star"></i> /features</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/help')"><i class="fa-solid fa-circle-question"></i> /help</button>
 
@@ -821,10 +869,30 @@
                         <p id="bot-status-subtext">bot (simulated)</p>
                     </div>
                 </div>
-                <div class="sticky-stats-bar" id="sticky-stats-bar">
-                    <div class="mini-stat" style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Score: <span id="hdr-score">0.00</span></div>
-                    <div class="mini-stat" style="color: var(--gold);"><i class="fa-solid fa-fire"></i> Streak: <span id="hdr-streak">0</span></div>
-                    <div class="mini-stat" style="color: var(--telegram-blue);"><i class="fa-solid fa-clock"></i> <span id="hdr-timer">00:30</span></div>
+                <div style="display: flex; align-items: center; gap: 15px; z-index: 11;">
+                    <!-- TTS Controls -->
+                    <div style="display: flex; gap: 10px; font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 6px 10px; border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="tts-read-q" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-volume-high"></i> Read Q
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="tts-read-exp" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-comment-dots"></i> Read Exp
+                        </label>
+                    </div>
+                    
+                    <div class="sticky-stats-bar" id="sticky-stats-bar">
+                        <div class="mini-stat" style="color: var(--success);"><i class="fa-solid fa-circle-check"></i> Score: <span id="hdr-score">0.00</span></div>
+                        <div class="mini-stat" style="color: var(--gold);"><i class="fa-solid fa-fire"></i> Streak: <span id="hdr-streak">0</span></div>
+                        <div class="mini-stat" style="color: var(--telegram-blue);"><i class="fa-solid fa-clock"></i> <span id="hdr-timer">00:30</span></div>
+                        
+                        <!-- Lifelines Separator and Buttons -->
+                        <div style="border-left: 1px solid var(--glass-border); height: 20px; margin: 0 5px;"></div>
+                        <div class="lifeline-buttons" style="display: flex; gap: 6px;">
+                            <button class="menu-btn" id="ll-5050" onclick="useLifeline('5050')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(36, 129, 204, 0.15); border: 1px solid rgba(36, 129, 204, 0.3);" title="50:50 Lifeline">🌓 50:50</button>
+                            <button class="menu-btn" id="ll-poll" onclick="useLifeline('poll')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(79, 174, 94, 0.15); border: 1px solid rgba(79, 174, 94, 0.3);" title="Audience Poll">📊 Poll</button>
+                            <button class="menu-btn" id="ll-double" onclick="useLifeline('double')" style="padding: 4px 8px; font-size: 0.72rem; border-radius: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3);" title="Double Dip">2️⃣ Double</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -963,6 +1031,55 @@
                         <button class="primary-btn" onclick="closeSettingsModal()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); flex: 1;">Cancel</button>
                         <button class="primary-btn" onclick="submitSettingsForm()" style="background: linear-gradient(135deg, var(--success), #2ecc71); flex: 1;">Save & Initialize</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Wallpaper Customization Modal -->
+            <div class="overlay-modal" id="wallpaper-modal">
+                <div class="config-card" style="max-width: 500px; text-align: left;">
+                    <h2 style="text-align: center; color: var(--telegram-blue); margin-bottom: 10px;">🎨 Chat Wallpapers</h2>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Choose a background style for the chat window or upload your own</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-height: 250px; overflow-y: auto; padding: 5px;">
+                        <!-- Presets (Solid colors) -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-dark')" style="height: 60px; background: #141f29; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Dark 🖤</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-charcoal')" style="height: 60px; background: #1e2833; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Charcoal 🩶</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('solid-navy')" style="height: 60px; background: #0f1c2e; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Navy 💙</div>
+                        
+                        <!-- Gradients -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-aurora')" style="height: 60px; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Aurora 🌌</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-sunset')" style="height: 60px; background: linear-gradient(135deg, #4b1212, #6b2d2d, #141f29); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Sunset 🌇</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('grad-telegram')" style="height: 60px; background: linear-gradient(135deg, #182533, #2b5278, #182533); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white;">Telegram ✈️</div>
+                        
+                        <!-- Live Wallpapers -->
+                        <div class="wallpaper-item" onclick="setChatWallpaper('live-stars')" style="height: 60px; background: linear-gradient(135deg, #090a0f, #121526); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Stars 🌠</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('live-wave')" style="height: 60px; background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Wave 🌊</div>
+                        <div class="wallpaper-item" onclick="setChatWallpaper('pattern-telegram')" style="height: 60px; background: #17212b; border-radius: 8px; border: 2px solid var(--glass-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: bold; color: white; overflow: hidden; position: relative;">Pattern 🀄</div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px; text-align: left;">
+                        <label style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Upload Custom Image</label>
+                        <input type="file" id="wallpaper-upload-input" accept="image/*" onchange="uploadCustomWallpaper(event)" style="display: none;">
+                        <button class="primary-btn" onclick="document.getElementById('wallpaper-upload-input').click()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); width: 100%;">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload From Device
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 25px;">
+                        <button class="primary-btn" onclick="closeWallpaperModal()" style="background: linear-gradient(135deg, var(--telegram-blue), #50a2e3); flex: 1; text-align: center;">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audience Poll Modal -->
+            <div class="overlay-modal" id="poll-modal">
+                <div class="config-card" style="max-width: 420px; text-align: left;">
+                    <h3 style="text-align: center; color: var(--telegram-blue); margin-bottom: 15px;"><i class="fa-solid fa-chart-bar"></i> Audience Poll Results</h3>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.82rem; margin-bottom: 20px;">Percentage of other players choosing each option</p>
+                    <div id="poll-bars-container" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;">
+                        <!-- Dynamic bars go here -->
+                    </div>
+                    <button class="primary-btn" onclick="closePollModal()" style="width: 100%; background: linear-gradient(135deg, var(--telegram-blue), #50a2e3);">Close Results</button>
                 </div>
             </div>
         </div>
@@ -2323,6 +2440,97 @@
             }
         }
 
+        // --- WALLPAPER HANDLERS ---
+        function openWallpaperModal() {
+            AudioEngine.click();
+            document.getElementById('wallpaper-modal').classList.add('active');
+        }
+
+        function closeWallpaperModal() {
+            AudioEngine.click();
+            document.getElementById('wallpaper-modal').classList.remove('active');
+        }
+
+        function setChatWallpaper(type, customData = null) {
+            const chatHistory = document.getElementById('chat-history');
+            if (!chatHistory) return;
+
+            chatHistory.style.backgroundImage = '';
+            chatHistory.style.backgroundSize = '';
+            chatHistory.style.backgroundPosition = '';
+            chatHistory.style.animation = '';
+            chatHistory.style.backgroundColor = '';
+            chatHistory.style.backgroundBlendMode = '';
+
+            if (type.startsWith('solid-')) {
+                const colorMap = {
+                    'solid-dark': '#141f29',
+                    'solid-charcoal': '#1e2833',
+                    'solid-navy': '#0f1c2e'
+                };
+                chatHistory.style.backgroundColor = colorMap[type] || '#141f29';
+            } else if (type.startsWith('grad-')) {
+                const gradMap = {
+                    'grad-aurora': 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)',
+                    'grad-sunset': 'linear-gradient(135deg, #4b1212, #6b2d2d, #141f29)',
+                    'grad-telegram': 'linear-gradient(135deg, #182533, #2b5278, #182533)'
+                };
+                chatHistory.style.backgroundImage = gradMap[type] || '';
+            } else if (type === 'live-stars') {
+                chatHistory.style.backgroundImage = 'linear-gradient(-45deg, #090a0f, #181d33, #0b0c16, #1f2747)';
+                chatHistory.style.backgroundSize = '300% 300%';
+                chatHistory.style.animation = 'gradientWave 15s ease infinite';
+            } else if (type === 'live-wave') {
+                chatHistory.style.backgroundImage = 'linear-gradient(-45deg, #1a2a6c, #b21f1f, #fdbb2d, #1a2a6c)';
+                chatHistory.style.backgroundSize = '400% 400%';
+                chatHistory.style.animation = 'gradientWave 10s ease infinite';
+            } else if (type === 'pattern-telegram') {
+                chatHistory.style.backgroundImage = "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')";
+                chatHistory.style.backgroundBlendMode = 'overlay';
+                chatHistory.style.backgroundColor = '#0e1621';
+            } else if (type === 'custom' && customData) {
+                chatHistory.style.backgroundImage = `url(${customData})`;
+                chatHistory.style.backgroundSize = 'cover';
+                chatHistory.style.backgroundPosition = 'center';
+            }
+
+            localStorage.setItem('chat_wallpaper_type', type);
+            if (customData) {
+                try {
+                    localStorage.setItem('chat_wallpaper_data', customData);
+                } catch(e) {
+                    console.warn("Custom wallpaper image too large for LocalStorage!");
+                }
+            } else {
+                localStorage.removeItem('chat_wallpaper_data');
+            }
+        }
+
+        function uploadCustomWallpaper(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                alert("Please select an image smaller than 2MB to fit local browser storage limits!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result;
+                setChatWallpaper('custom', base64Data);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadSavedWallpaper() {
+            const savedType = localStorage.getItem('chat_wallpaper_type');
+            if (savedType) {
+                const savedData = localStorage.getItem('chat_wallpaper_data');
+                setChatWallpaper(savedType, savedData);
+            }
+        }
+
         // --- AUTH & SETTINGS MODAL UI HANDLERS ---
         function openAuthModal() {
             AudioEngine.click();
@@ -2478,6 +2686,26 @@
         initDatabase();
         FirebaseSyncManager.init();
         GroupSyncManager.init();
+        loadSavedWallpaper();
+        VoiceEngine.init();
+
+        // Keyboard Shortcut: Press '/' to focus chat input
+        window.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            const isInputFocused = activeTag === 'input' || activeTag === 'textarea' || document.activeElement.isContentEditable;
+            
+            if (e.key === '/' && !isInputFocused) {
+                const chatInput = document.getElementById('chat-input');
+                if (chatInput) {
+                    e.preventDefault();
+                    chatInput.focus();
+                    chatInput.value = '/';
+                    setTimeout(() => {
+                        chatInput.selectionStart = chatInput.selectionEnd = chatInput.value.length;
+                    }, 0);
+                }
+            }
+        });
 
         // Bot state
         let creationState = {
@@ -2502,8 +2730,341 @@
             initialTimerLimit: 30,
             timeLeft: 30,
             timerRate: 1000, // Tick rate in ms (can be fast or slow)
-            isPaused: false
+            isPaused: false,
+            lifelines: {
+                used5050: false,
+                usedPoll: false,
+                usedDouble: false
+            },
+            doubleDipActive: false,
+            answersLog: []
         };
+
+        const BADGES = {
+            SPEED_DEMON: { id: 'SPEED_DEMON', name: 'Speed Demon', emoji: '⚡', desc: 'Correct answer under 3 seconds' },
+            STREAK_MASTER: { id: 'STREAK_MASTER', name: 'Streak Master', emoji: '🔥', desc: 'Streak of 5 or more correct answers' },
+            SCHOLAR: { id: 'SCHOLAR', name: 'Scholar', emoji: '🧠', desc: 'Accuracy > 90% in a quiz' },
+            EMPEROR: { id: 'EMPEROR', name: 'Emperor', emoji: '👑', desc: 'Score > 95% of max possible score' },
+            DEFENDER: { id: 'DEFENDER', name: 'Defender', emoji: '🛡️', desc: 'Answered negative marking questions safely' },
+            SUPERSTAR: { id: 'SUPERSTAR', name: 'Superstar', emoji: '🌟', desc: 'Streak of 10 or more correct answers' },
+            SNIPER: { id: 'SNIPER', name: 'Sniper', emoji: '🏹', desc: '100% accuracy on a quiz with 5+ questions' },
+            ROCKET: { id: 'ROCKET', name: 'Rocket', emoji: '🚀', desc: 'Average answer time < 5 seconds' },
+            DIAMOND: { id: 'DIAMOND', name: 'Diamond', emoji: '💎', desc: 'Achieved high score 3 times' },
+            PUZZLE_SOLVER: { id: 'PUZZLE_SOLVER', name: 'Puzzle Solver', emoji: '🧩', desc: 'Got hard questions correct' },
+            WIZARD: { id: 'WIZARD', name: 'Wizard', emoji: '🧙', desc: 'Viewed explanations 5+ times' },
+            LUCKY_CHARM: { id: 'LUCKY_CHARM', name: 'Lucky Charm', emoji: '🍀', desc: 'Correct answer at the last second' },
+            BRAVE_HEART: { id: 'BRAVE_HEART', name: 'Brave Heart', emoji: '🦁', desc: 'Attempted all questions without skipping' },
+            TACTICIAN: { id: 'TACTICIAN', name: 'Tactician', emoji: '📊', desc: 'Score > 80% on hard quizzes' },
+            GRADUATE: { id: 'GRADUATE', name: 'Graduate', emoji: '🎓', desc: 'Finished 10 quizzes' },
+            MARKSMAN: { id: 'MARKSMAN', name: 'Marksman', emoji: '🎯', desc: 'Perfect accuracy on at least one quiz' },
+            SPRINTER: { id: 'SPRINTER', name: 'Sprinter', emoji: '🏃', desc: 'Answered a question under 2 seconds' },
+            WISE_OWL: { id: 'WISE_OWL', name: 'Wise Owl', emoji: '🦉', desc: 'Correct answer with less than 5 seconds left' },
+            GLADIATOR: { id: 'GLADIATOR', name: 'Gladiator', emoji: '⚔️', desc: 'Played 5 group matches' },
+            PHOENIX: { id: 'PHOENIX', name: '❤️‍🔥', desc: 'Correct answer immediately after a wrong answer' },
+            MASTER_KEY: { id: 'MASTER_KEY', name: 'Master Key', emoji: '🔑', desc: 'Found hidden stats or completed all formats' },
+            GOLD_MEDALIST: { id: 'GOLD_MEDALIST', name: 'Gold Medalist', emoji: '🏅', desc: 'First place in a group quiz' },
+            SILVER_MEDALIST: { id: 'SILVER_MEDALIST', name: 'Silver Medalist', emoji: '🥈', desc: 'Second place in a group quiz' },
+            BRONZE_MEDALIST: { id: 'BRONZE_MEDALIST', name: 'Bronze Medalist', emoji: '🥉', desc: 'Third place in a group quiz' },
+            CYBORG: { id: 'CYBORG', name: 'Cyborg', emoji: '🤖', desc: 'Zero incorrect answers in a full quiz' }
+        };
+
+        const BadgeManager = {
+            getUserBadges(userId) {
+                if (userId === 'current' || userId === GroupSyncManager.clientId) {
+                    try {
+                        const list = JSON.parse(localStorage.getItem('unigram_user_badges') || '[]');
+                        return list.map(id => BADGES[id]).filter(Boolean);
+                    } catch(e) {
+                        return [];
+                    }
+                }
+                if (currentGroup) {
+                    const member = currentGroup.members.find(m => m.id === userId);
+                    if (member && member.badges) {
+                        return member.badges.map(id => BADGES[id]).filter(Boolean);
+                    }
+                }
+                return [];
+            },
+            awardBadge(badgeId) {
+                if (!BADGES[badgeId]) return;
+                try {
+                    const list = JSON.parse(localStorage.getItem('unigram_user_badges') || '[]');
+                    if (!list.includes(badgeId)) {
+                        list.push(badgeId);
+                        localStorage.setItem('unigram_user_badges', JSON.stringify(list));
+                        printMsg('bot', `🎉 <b>New Achievement Unlocked!</b><br>You earned the badge: ${BADGES[badgeId].emoji} <b>${BADGES[badgeId].name}</b> (${BADGES[badgeId].desc})`, true);
+                        if (FirebaseSyncManager.dbEnabled && FirebaseSyncManager.currentUser) {
+                            firebase.database().ref(`users/${FirebaseSyncManager.currentUser.uid}/badges`).set(list);
+                        }
+                    }
+                } catch(e) {}
+            },
+            checkSessionBadges(session, answersLog) {
+                const totalQuestions = session.questions.length;
+                const totalAttempted = session.correct + session.incorrect;
+                const accuracy = totalAttempted > 0 ? (session.correct / totalAttempted) * 100 : 0;
+                
+                let hasFast = false;
+                let hasSuperFast = false;
+                let hasSlowCorrect = false;
+                let hasLastSecond = false;
+                let hasPhoenix = false;
+                let prevWasWrong = false;
+                let totalTimeSpent = 0;
+                
+                answersLog.forEach(log => {
+                    totalTimeSpent += log.timeSpent;
+                    if (log.isCorrect) {
+                        if (log.timeSpent <= 2) hasFast = true;
+                        if (log.timeSpent <= 3) hasSuperFast = true;
+                        if (log.timeLeft <= 5) hasSlowCorrect = true;
+                        if (log.timeLeft === 1) hasLastSecond = true;
+                        if (prevWasWrong) hasPhoenix = true;
+                        prevWasWrong = false;
+                    } else {
+                        prevWasWrong = true;
+                    }
+                });
+                
+                const avgTime = totalAttempted > 0 ? totalTimeSpent / totalAttempted : 0;
+                
+                if (hasSuperFast) this.awardBadge('SPEED_DEMON');
+                if (session.bestStreak >= 5) this.awardBadge('STREAK_MASTER');
+                if (accuracy > 90 && totalQuestions >= 5) this.awardBadge('SCHOLAR');
+                
+                const maxScore = totalQuestions * marksPositive;
+                if (session.score > maxScore * 0.95 && totalQuestions >= 5) this.awardBadge('EMPEROR');
+                if (session.incorrect === 0 && session.correct > 0) this.awardBadge('DEFENDER');
+                if (session.bestStreak >= 10) this.awardBadge('SUPERSTAR');
+                if (accuracy === 100 && totalQuestions >= 5) this.awardBadge('SNIPER');
+                if (avgTime < 5 && totalAttempted >= 5) this.awardBadge('ROCKET');
+                if (session.correct >= 5) this.awardBadge('PUZZLE_SOLVER');
+                if (hasLastSecond) this.awardBadge('LUCKY_CHARM');
+                if (totalAttempted === totalQuestions) this.awardBadge('BRAVE_HEART');
+                if (accuracy === 100) this.awardBadge('MARKSMAN');
+                if (hasFast) this.awardBadge('SPRINTER');
+                if (hasSlowCorrect) this.awardBadge('WISE_OWL');
+                if (hasPhoenix) this.awardBadge('PHOENIX');
+                if (session.incorrect === 0 && totalQuestions >= 5) this.awardBadge('CYBORG');
+                
+                try {
+                    let count = parseInt(localStorage.getItem('completed_quizzes_count') || '0') + 1;
+                    localStorage.setItem('completed_quizzes_count', count);
+                    if (count >= 1) this.awardBadge('GRADUATE');
+                    if (count >= 10) this.awardBadge('GRADUATE');
+                } catch(e) {}
+            }
+        };
+
+        const VoiceEngine = {
+            enabledQ: false,
+            enabledExp: false,
+            selectedVoice: null,
+            
+            init() {
+                const qCheck = document.getElementById('tts-read-q');
+                const expCheck = document.getElementById('tts-read-exp');
+                
+                if (qCheck) {
+                    this.enabledQ = localStorage.getItem('tts_read_q') === 'true';
+                    qCheck.checked = this.enabledQ;
+                    qCheck.addEventListener('change', (e) => {
+                        this.enabledQ = e.target.checked;
+                        localStorage.setItem('tts_read_q', this.enabledQ);
+                        AudioEngine.click();
+                        if (this.enabledQ) {
+                            this.speak("Voice enabled");
+                        } else {
+                            window.speechSynthesis.cancel();
+                        }
+                    });
+                }
+                
+                if (expCheck) {
+                    this.enabledExp = localStorage.getItem('tts_read_exp') === 'true';
+                    expCheck.checked = this.enabledExp;
+                    expCheck.addEventListener('change', (e) => {
+                        this.enabledExp = e.target.checked;
+                        localStorage.setItem('tts_read_exp', this.enabledExp);
+                        AudioEngine.click();
+                        if (this.enabledExp) {
+                            this.speak("Explanation reader enabled");
+                        } else {
+                            window.speechSynthesis.cancel();
+                        }
+                    });
+                }
+                
+                this.selectVoice();
+                if (typeof window !== 'undefined' && window.speechSynthesis) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        this.selectVoice();
+                    };
+                }
+            },
+            
+            selectVoice() {
+                if (typeof window === 'undefined' || !window.speechSynthesis) return;
+                const voices = window.speechSynthesis.getVoices();
+                let hiVoice = voices.find(v => v.lang.startsWith('hi') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('veena') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('zira')));
+                if (!hiVoice) hiVoice = voices.find(v => v.lang.startsWith('hi'));
+                
+                let enVoice = voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('hazel') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('samantha')));
+                if (!enVoice) enVoice = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'));
+                if (!enVoice) enVoice = voices.find(v => v.lang.startsWith('en'));
+                
+                this.selectedVoice = hiVoice || enVoice || voices[0];
+            },
+            
+            speak(text) {
+                if (typeof window === 'undefined' || !window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+                if (!text) return;
+                
+                let cleanText = text.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, "")
+                                    .replace(/✅|❌|😂|🤖|⚙️|🎨|⚡|👑|🎯|🥇|🥈|🥉|🏅|🛡️|🌟|🏹|🚀|💎|🧩|🧙|🍀|🦁|📊|🎓|🏃|🦉|⚔️|🔥|🔑|🤖|👥|📂|🎮|🛠️|📤|💳|📄/g, "")
+                                    .replace(/<[^>]*>/g, "")
+                                    .trim();
+                
+                if (!cleanText) return;
+                
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                if (this.selectedVoice) {
+                    utterance.voice = this.selectedVoice;
+                }
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            },
+            
+            speakQuestion(questionObj) {
+                if (!this.enabledQ) return;
+                let speakStr = questionObj.question + ". ";
+                if (questionObj.options && questionObj.options.length) {
+                    questionObj.options.forEach((opt, idx) => {
+                        const label = String.fromCharCode(65 + idx);
+                        speakStr += `Option ${label}: ${opt.text}. `;
+                    });
+                }
+                this.speak(speakStr);
+            },
+            
+            speakExplanation(explanationStr) {
+                if (!this.enabledExp) return;
+                this.speak("Explanation: " + explanationStr);
+            }
+        };
+
+        // Lifelines Controller
+        function useLifeline(type) {
+            if (!activeQuiz.running) return;
+            AudioEngine.click();
+            
+            const qIdx = activeQuiz.currQIdx;
+            const data = activeQuiz.questions[qIdx];
+            const card = document.getElementById(`chat-card-${qIdx}`);
+            if (!card) return;
+            
+            const optsContainer = card.querySelector(`#opts-${qIdx}`);
+            if (!optsContainer) return;
+            const btns = optsContainer.querySelectorAll('.quiz-opt-btn');
+            
+            if (type === '5050') {
+                if (activeQuiz.lifelines.used5050) return;
+                activeQuiz.lifelines.used5050 = true;
+                document.getElementById('ll-5050').disabled = true;
+                
+                const incorrectIndices = [];
+                data.options.forEach((opt, idx) => {
+                    if (!opt.isCorrect) incorrectIndices.push(idx);
+                });
+                
+                const toHide = [];
+                while (toHide.length < 2 && incorrectIndices.length > 0) {
+                    const randIdx = Math.floor(Math.random() * incorrectIndices.length);
+                    toHide.push(incorrectIndices.splice(randIdx, 1)[0]);
+                }
+                
+                toHide.forEach(idx => {
+                    if (btns[idx]) {
+                        btns[idx].style.opacity = '0';
+                        btns[idx].style.pointerEvents = 'none';
+                    }
+                });
+                
+                printMsg('bot', "🌓 <b>50:50 Lifeline Used!</b> Two incorrect options have been hidden.", true);
+            } 
+            else if (type === 'poll') {
+                if (activeQuiz.lifelines.usedPoll) return;
+                activeQuiz.lifelines.usedPoll = true;
+                document.getElementById('ll-poll').disabled = true;
+                
+                const pollData = [];
+                let correctPct = Math.floor(Math.random() * 25) + 50; 
+                let remaining = 100 - correctPct;
+                
+                const optPcts = [0, 0, 0, 0];
+                const correctIdx = data.options.findIndex(o => o.isCorrect);
+                
+                optPcts[correctIdx] = correctPct;
+                
+                const otherIndices = [0, 1, 2, 3].filter(i => i !== correctIdx);
+                const p1 = Math.floor(Math.random() * (remaining - 5));
+                remaining -= p1;
+                const p2 = Math.floor(Math.random() * remaining);
+                const p3 = remaining - p2;
+                
+                optPcts[otherIndices[0]] = p1;
+                optPcts[otherIndices[1]] = p2;
+                optPcts[otherIndices[2]] = p3;
+                
+                const container = document.getElementById('poll-bars-container');
+                container.innerHTML = '';
+                
+                data.options.forEach((opt, idx) => {
+                    const label = String.fromCharCode(65 + idx);
+                    const pct = optPcts[idx];
+                    
+                    const barWrap = document.createElement('div');
+                    barWrap.className = 'poll-bar-wrapper';
+                    
+                    const barColor = opt.isCorrect ? 'var(--success)' : 'var(--telegram-blue)';
+                    
+                    barWrap.innerHTML = `
+                        <div class="poll-bar-label">
+                            <span>Option ${label}: ${opt.text.slice(0, 30)}${opt.text.length > 30 ? '...' : ''}</span>
+                            <span>${pct}%</span>
+                        </div>
+                        <div class="poll-bar-track">
+                            <div class="poll-bar-fill" style="width: 0%; background: ${barColor};"></div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(barWrap);
+                    
+                    setTimeout(() => {
+                        const barFill = barWrap.querySelector('.poll-bar-fill');
+                        if (barFill) barFill.style.width = pct + '%';
+                    }, 100);
+                });
+                
+                document.getElementById('poll-modal').classList.add('active');
+                printMsg('bot', "📊 <b>Audience Poll Used!</b> Check the results in the popup.", true);
+            } 
+            else if (type === 'double') {
+                if (activeQuiz.lifelines.usedDouble) return;
+                activeQuiz.lifelines.usedDouble = true;
+                activeQuiz.doubleDipActive = true;
+                document.getElementById('ll-double').disabled = true;
+                
+                printMsg('bot', "2️⃣ <b>Double Dip Used!</b> You can now select up to 2 options for this question. If the first choice is wrong, you will get another chance.", true);
+            }
+        }
+        
+        function closePollModal() {
+            AudioEngine.click();
+            document.getElementById('poll-modal').classList.remove('active');
+        }
 
         let timerInterval = null;
         let nextQuestionTimeout = null;
@@ -2541,7 +3102,11 @@
             sfg: "ForumIAS SFG PDF converter (Solution only)",
             pw: "OnlyIAS PW PDF converter (Test + Solution)",
             pdf: "Generate and download a study booklet PDF for a quiz by ID",
-            html: "Generate and download a playable HTML page for a quiz by ID"
+            html: "Generate and download a playable HTML page for a quiz by ID",
+            settings: "Open Database Settings override modal",
+            wallpaper: "Open Chat Wallpaper customization modal",
+            wrong: "Start quiz with your incorrectly answered questions",
+            correct: "Start quiz with your correctly answered questions"
         };
 
         // DOM elements
@@ -2707,6 +3272,11 @@
                 case '/settings':
                     openSettingsModal();
                     printMsg('bot', "⚙️ Opened Database Settings Modal. You can override the default Firebase configuration here.");
+                    break;
+
+                case '/wallpaper':
+                    openWallpaperModal();
+                    printMsg('bot', "🎨 Opened Wallpaper Customization Modal. Choose from solid colors, gradients, live waves, or upload an image.");
                     break;
 
                 case '/create':
@@ -2882,6 +3452,22 @@
                         break;
                     }
                     initiateQuizFlow(param);
+                    break;
+
+                case '/wrong':
+                    if (!param) {
+                        printMsg('bot', "⚠️ Please specify a Quiz ID. Example: `/wrong 123456`");
+                        break;
+                    }
+                    initiateSubsetQuizFlow(param, 'wrong');
+                    break;
+
+                case '/correct':
+                    if (!param) {
+                        printMsg('bot', "⚠️ Please specify a Quiz ID. Example: `/correct 123456`");
+                        break;
+                    }
+                    initiateSubsetQuizFlow(param, 'correct');
                     break;
 
                 case '/stop':
@@ -3122,6 +3708,48 @@
             configModal.classList.add('active');
         }
 
+        function initiateSubsetQuizFlow(quizId, type) {
+            if (currentGroup && !currentGroup.isHost) {
+                printMsg('bot', "⚠️ Only the Group Creator can start a live quiz!");
+                return;
+            }
+            const quizObj = quizzesDb.find(q => q.id === quizId);
+            if (!quizObj) {
+                printMsg('bot', `❌ Quiz with ID <code>${quizId}</code> does not exist.`, true);
+                return;
+            }
+            
+            const recordStr = localStorage.getItem(`quiz_attempt_${quizId}`);
+            if (!recordStr) {
+                printMsg('bot', `❌ No previous attempt records found for Quiz ID: <code>${quizId}</code>. Play it once first!`, true);
+                return;
+            }
+            
+            let record;
+            try {
+                record = JSON.parse(recordStr);
+            } catch(e) {
+                printMsg('bot', `❌ Error reading attempt records.`);
+                return;
+            }
+            
+            const indices = type === 'wrong' ? record.incorrectIndices : record.correctIndices;
+            if (!indices || indices.length === 0) {
+                printMsg('bot', `ℹ️ No ${type === 'wrong' ? 'incorrect' : 'correct'} questions recorded in your last attempt for Quiz ID: <code>${quizId}</code>.`, true);
+                return;
+            }
+            
+            const filteredQuestions = quizObj.questions.filter((q, idx) => indices.includes(idx));
+            
+            activeQuiz.id = quizId;
+            activeQuiz.name = `${quizObj.name} (${type === 'wrong' ? 'Wrong' : 'Correct'} Qs)`;
+            activeQuiz.questions = filteredQuestions;
+            
+            // Set modal info & show
+            document.getElementById('config-quiz-title').textContent = `Configuration for: ${activeQuiz.name}`;
+            configModal.classList.add('active');
+        }
+
         function submitQuizConfig() {
             const sec = parseInt(document.getElementById('timer-sec').value) || 30;
             marksPositive = parseFloat(document.getElementById('marks-positive').value) || 2;
@@ -3158,6 +3786,21 @@
             activeQuiz.isPaused = false;
             activeQuiz.timerRate = 1000;
             activeQuiz.startTime = Date.now();
+            activeQuiz.answersLog = [];
+            activeQuiz.doubleDipActive = false;
+            activeQuiz.lifelines = {
+                used5050: false,
+                usedPoll: false,
+                usedDouble: false
+            };
+
+            // Enable lifeline buttons
+            const l50 = document.getElementById('ll-5050');
+            const lpl = document.getElementById('ll-poll');
+            const ldb = document.getElementById('ll-double');
+            if (l50) l50.disabled = false;
+            if (lpl) lpl.disabled = false;
+            if (ldb) ldb.disabled = false;
 
             printMsg('bot', `🎬 <b>Launching Battle: ${activeQuiz.name}!</b>\n\nTotal Questions: ${activeQuiz.questions.length}\nTimer: ${activeQuiz.timerLimit}s / Q\nCorrect: +${marksPositive} | Wrong: -${marksNegative}\n\n<i>Get ready... 🧠</i>`, true);
 
@@ -3241,6 +3884,11 @@
             });
             
             scrollToBottom();
+            
+            // Speak question via TTS
+            if (activeQuiz.running && VoiceEngine.enabledQ) {
+                VoiceEngine.speakQuestion(data);
+            }
 
             // Run countdown
             activeQuiz.timeLeft = activeQuiz.timerLimit;
@@ -3274,14 +3922,53 @@
         // User clicked an answer
         function handleChatQuizAnswer(e, qIdx, optIdx, selectedBtn, container, card) {
             if (!activeQuiz.running) return;
-            clearInterval(timerInterval);
 
             const data = activeQuiz.questions[qIdx];
             const isCorrect = data.options[optIdx].isCorrect;
 
+            // Handle Double Dip lifeline active
+            if (activeQuiz.doubleDipActive) {
+                if (!isCorrect) {
+                    // It is a wrong choice, but we have double dip!
+                    selectedBtn.classList.add('wrong');
+                    selectedBtn.disabled = true;
+                    AudioEngine.wrong();
+                    
+                    // Show a quick notification bubble
+                    const dipBubble = document.createElement('span');
+                    dipBubble.className = 'score-bubble minus';
+                    dipBubble.textContent = `Try Again!`;
+                    card.appendChild(dipBubble);
+                    dipBubble.style.left = `${e.clientX - card.getBoundingClientRect().left}px`;
+                    dipBubble.style.top = `${e.clientY - card.getBoundingClientRect().top}px`;
+                    setTimeout(() => dipBubble.remove(), 800);
+                    
+                    // Consume the lifeline
+                    activeQuiz.doubleDipActive = false;
+                    
+                    // Keep the timer running or resume it
+                    return;
+                } else {
+                    // Correct! Just consume the double dip state
+                    activeQuiz.doubleDipActive = false;
+                }
+            }
+
+            clearInterval(timerInterval);
+
             // Lock options
             const btns = container.querySelectorAll('.quiz-opt-btn');
             btns.forEach(b => b.disabled = true);
+
+            // Log answer details for achievements
+            if (activeQuiz.answersLog) {
+                activeQuiz.answersLog.push({
+                    qIdx: qIdx,
+                    isCorrect: isCorrect,
+                    timeLeft: activeQuiz.timeLeft,
+                    timeSpent: activeQuiz.timerLimit - activeQuiz.timeLeft
+                });
+            }
 
             // Floating feedback bubble
             const bubble = document.createElement('span');
@@ -3333,6 +4020,11 @@
             const exp = card.querySelector('.explanation-panel');
             exp.style.display = 'block';
 
+            // Voice synthesis explanation readout
+            if (VoiceEngine.enabledExp) {
+                VoiceEngine.speakExplanation(data.explanation);
+            }
+
             if (currentGroup) {
                 GroupSyncManager.publishAnswer(activeQuiz.score, activeQuiz.correct, activeQuiz.incorrect, activeQuiz.streak, isCorrect);
                 
@@ -3369,12 +4061,27 @@
                 btns[correctIdx].classList.add('correct');
             }
 
+            // Log timeout in answersLog
+            if (activeQuiz.answersLog) {
+                activeQuiz.answersLog.push({
+                    qIdx: activeQuiz.currQIdx,
+                    isCorrect: false,
+                    timeLeft: 0,
+                    timeSpent: activeQuiz.timerLimit
+                });
+            }
+
             activeQuiz.streak = 0;
             updateStickyStats();
 
             // Show explanation
             const exp = card.querySelector('.explanation-panel');
             exp.style.display = 'block';
+
+            // Voice synthesis explanation readout
+            if (VoiceEngine.enabledExp) {
+                VoiceEngine.speakExplanation(data.explanation);
+            }
 
             // Show floating text
             const bubble = document.createElement('span');
@@ -3414,6 +4121,19 @@
             activeQuiz.running = false;
             stickyStatsBar.classList.remove('active');
 
+            // Save attempt question indices for wrong/correct re-play subset
+            if (activeQuiz.answersLog && activeQuiz.id) {
+                const incorrectIndices = activeQuiz.answersLog.filter(l => !l.isCorrect).map(l => l.qIdx);
+                const correctIndices = activeQuiz.answersLog.filter(l => l.isCorrect).map(l => l.qIdx);
+                
+                const sessionRecord = {
+                    quizId: activeQuiz.id,
+                    incorrectIndices: incorrectIndices,
+                    correctIndices: correctIndices
+                };
+                localStorage.setItem(`quiz_attempt_${activeQuiz.id}`, JSON.stringify(sessionRecord));
+            }
+
             // Log statistics internally
             localStats.totalAttempts += (activeQuiz.correct + activeQuiz.incorrect);
             localStats.totalCorrect += activeQuiz.correct;
@@ -3422,6 +4142,11 @@
                 localStats.bestStreakOverall = activeQuiz.bestStreak;
             }
             localStorage.setItem('local_quiz_stats', JSON.stringify(localStats));
+
+            // Run Badge checks and award achievements
+            if (activeQuiz.answersLog) {
+                BadgeManager.checkSessionBadges(activeQuiz, activeQuiz.answersLog);
+            }
 
             AudioEngine.fanfare();
 
@@ -3438,13 +4163,23 @@
             const accuracy = totalAttempted > 0 ? (activeQuiz.correct / totalAttempted) * 100 : 0;
             const unattempted = activeQuiz.questions.length - totalAttempted;
 
+            // Calculate average answer time
+            let totalTimeSpent = 0;
+            if (activeQuiz.answersLog) {
+                activeQuiz.answersLog.forEach(l => totalTimeSpent += l.timeSpent);
+            }
+            const avgSpeed = totalAttempted > 0 ? (totalTimeSpent / totalAttempted).toFixed(1) + 's' : '0.0s';
+            const userBadges = BadgeManager.getUserBadges('current');
+
             const resultData = {
                 score: activeQuiz.score,
                 correct: activeQuiz.correct,
                 incorrect: activeQuiz.incorrect,
                 unattempted: unattempted,
                 accuracy: accuracy,
-                timeSpent: timeSpent
+                timeSpent: timeSpent,
+                avgSpeed: avgSpeed,
+                badges: userBadges
             };
 
             // Trigger downloads automatically
@@ -4033,6 +4768,15 @@ body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 <span class="mode-badge" id="mb"></span>
 </div>
 <div class="header-actions">
+<!-- Standalone TTS Controls -->
+<div style="display: flex; gap: 8px; font-size: 11px; align-items: center; color: var(--text-light); margin-right: 10px;">
+    <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="tts-read-q-p" style="accent-color: var(--primary);"> Q
+    </label>
+    <label style="display: flex; align-items: center; gap: 3px; cursor: pointer; user-select: none;">
+        <input type="checkbox" id="tts-read-exp-p" style="accent-color: var(--primary);"> Exp
+    </label>
+</div>
 <button class="theme-toggle" id="tt" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
 <div class="timer-display" id="td"><i class="fas fa-clock"></i><span id="tt2">00:00</span></div>
 </div>
@@ -4047,6 +4791,10 @@ body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 <div class="nav-controls">
 <button class="nav-btn secondary" id="pv"><i class="fas fa-chevron-left"></i>Previous</button>
 <button class="nav-btn secondary" id="mk"><i class="fas fa-bookmark"></i>Mark</button>
+<!-- Lifelines Buttons -->
+<button class="nav-btn secondary" id="ll-5050" onclick="useLifeline('5050')" style="background: rgba(102,126,234,0.1); color: var(--primary); border-color: rgba(102,126,234,0.2);">🌓 50:50</button>
+<button class="nav-btn secondary" id="ll-poll" onclick="useLifeline('poll')" style="background: rgba(72,187,120,0.1); color: var(--success); border-color: rgba(72,187,120,0.2);">📊 Poll</button>
+<button class="nav-btn secondary" id="ll-double" onclick="useLifeline('double')" style="background: rgba(251,191,36,0.1); color: var(--warning); border-color: rgba(251,191,36,0.2);">2️⃣ Double</button>
 <button class="nav-btn primary" id="nx">Next<i class="fas fa-chevron-right"></i></button>
 <button class="nav-btn primary" id="sm" style="display:none"><i class="fas fa-paper-plane"></i>Submit</button>
 </div>
@@ -4082,9 +4830,185 @@ body{font-family:'Poppins',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 <button class="action-btn secondary" id="rsb"><i class="fas fa-redo"></i>Restart Quiz</button>
 </div>
 </div>
+
+<!-- Standalone Audience Poll Modal -->
+<div id="pollModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); z-index:99999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-white); border-radius:20px; padding:30px; max-width:400px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.2); color:var(--text-dark);">
+        <h3 style="text-align: center; color: var(--primary); margin-bottom: 15px;"><i class="fas fa-chart-bar"></i> Audience Poll</h3>
+        <div id="pollBarsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;"></div>
+        <button class="nav-btn primary" onclick="document.getElementById('pollModal').style.display='none'" style="width:100%;">Close</button>
+    </div>
+</div>
+
 <script>
 const qd=${qdJson};
 st={cq:0,a:Array(qd.q.length).fill(null),mk:Array(qd.q.length).fill(false),tr:qd.tt,ti:null,sb:false,rv:false,th:'light'};
+
+const VoiceEngine = {
+    enabledQ: false,
+    enabledExp: false,
+    selectedVoice: null,
+    init() {
+        const qCheck = document.getElementById('tts-read-q-p');
+        const expCheck = document.getElementById('tts-read-exp-p');
+        if (qCheck) {
+            this.enabledQ = localStorage.getItem('tts_read_q') === 'true';
+            qCheck.checked = this.enabledQ;
+            qCheck.addEventListener('change', (e) => {
+                this.enabledQ = e.target.checked;
+                localStorage.setItem('tts_read_q', this.enabledQ);
+                if (this.enabledQ) this.speak("Voice enabled");
+                else window.speechSynthesis.cancel();
+            });
+        }
+        if (expCheck) {
+            this.enabledExp = localStorage.getItem('tts_read_exp') === 'true';
+            expCheck.checked = this.enabledExp;
+            expCheck.addEventListener('change', (e) => {
+                this.enabledExp = e.target.checked;
+                localStorage.setItem('tts_read_exp', this.enabledExp);
+                if (this.enabledExp) this.speak("Explanation enabled");
+                else window.speechSynthesis.cancel();
+            });
+        }
+        this.selectVoice();
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = () => this.selectVoice();
+        }
+    },
+    selectVoice() {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+        const voices = window.speechSynthesis.getVoices();
+        let hiVoice = voices.find(v => v.lang.startsWith('hi') && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('veena') || v.name.toLowerCase().includes('google')));
+        if (!hiVoice) hiVoice = voices.find(v => v.lang.startsWith('hi'));
+        let enVoice = voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('hazel') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('google') || v.name.toLowerCase().includes('samantha')));
+        if (!enVoice) enVoice = voices.find(v => v.lang.startsWith('en'));
+        this.selectedVoice = hiVoice || enVoice || voices[0];
+    },
+    speak(text) {
+        if (typeof window === 'undefined' || !window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        if (!text) return;
+        let cleanText = text.replace(/<[^>]*>/g, "").trim();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        if (this.selectedVoice) utterance.voice = this.selectedVoice;
+        window.speechSynthesis.speak(utterance);
+    },
+    speakQuestion(qObj) {
+        if (!this.enabledQ) return;
+        let str = qObj.txt + ". ";
+        if (qObj.opts) {
+            qObj.opts.forEach((o, i) => {
+                str += "Option " + String.fromCharCode(65 + i) + ": " + o + ". ";
+            });
+        }
+        this.speak(str);
+    },
+    speakExplanation(exp) {
+        if (!this.enabledExp) return;
+        this.speak("Explanation: " + exp);
+    }
+};
+
+const Lifelines = {
+    used5050: false,
+    usedPoll: false,
+    usedDouble: false,
+    doubleDipActive: false,
+    init() {
+        this.used5050 = false;
+        this.usedPoll = false;
+        this.usedDouble = false;
+        this.doubleDipActive = false;
+        const btn1 = document.getElementById('ll-5050');
+        const btn2 = document.getElementById('ll-poll');
+        const btn3 = document.getElementById('ll-double');
+        if (btn1) btn1.disabled = false;
+        if (btn2) btn2.disabled = false;
+        if (btn3) btn3.disabled = false;
+    }
+};
+
+function useLifeline(type) {
+    const q = qd.q[st.cq];
+    if (type === '5050') {
+        if (Lifelines.used5050) return;
+        Lifelines.used5050 = true;
+        document.getElementById('ll-5050').disabled = true;
+        
+        const incorrect = [];
+        q.opts.forEach((_, i) => {
+            if (i !== q.ci) incorrect.push(i);
+        });
+        
+        const toHide = [];
+        while (toHide.length < 2 && incorrect.length > 0) {
+            toHide.push(incorrect.splice(Math.floor(Math.random() * incorrect.length), 1)[0]);
+        }
+        
+        const btns = document.querySelectorAll('.option-btn');
+        toHide.forEach(idx => {
+            if (btns[idx]) {
+                btns[idx].style.opacity = '0';
+                btns[idx].style.pointerEvents = 'none';
+            }
+        });
+    } 
+    else if (type === 'poll') {
+        if (Lifelines.usedPoll) return;
+        Lifelines.usedPoll = true;
+        document.getElementById('ll-poll').disabled = true;
+        
+        let correctPct = Math.floor(Math.random() * 25) + 50;
+        let remaining = 100 - correctPct;
+        
+        const optPcts = [0, 0, 0, 0];
+        optPcts[q.ci] = correctPct;
+        
+        const other = [0, 1, 2, 3].filter(i => i !== q.ci);
+        const p1 = Math.floor(Math.random() * (remaining - 5));
+        remaining -= p1;
+        const p2 = Math.floor(Math.random() * remaining);
+        const p3 = remaining - p2;
+        optPcts[other[0]] = p1;
+        optPcts[other[1]] = p2;
+        optPcts[other[2]] = p3;
+        
+        const container = document.getElementById('pollBarsContainer');
+        container.innerHTML = '';
+        
+        q.opts.forEach((opt, idx) => {
+            const pct = optPcts[idx];
+            const label = String.fromCharCode(65 + idx);
+            const barWrap = document.createElement('div');
+            barWrap.style.marginBottom = '10px';
+            barWrap.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:4px;">
+                    <span>Option ${label}: ${opt.slice(0, 25)}</span>
+                    <span>${pct}%</span>
+                </div>
+                <div style="height:10px; background:rgba(0,0,0,0.05); border-radius:5px; overflow:hidden;">
+                    <div class="poll-fill-${idx}" style="height:100%; border-radius:5px; width:0%; background:${idx === q.ci ? 'var(--success)' : 'var(--primary)'}; transition: width 1s ease;"></div>
+                </div>
+            `;
+            container.appendChild(barWrap);
+            setTimeout(() => {
+                const fillEl = container.querySelector('.poll-fill-' + idx);
+                if (fillEl) fillEl.style.width = pct + '%';
+            }, 100);
+        });
+        
+        document.getElementById('pollModal').style.display = 'flex';
+    } 
+    else if (type === 'double') {
+        if (Lifelines.usedDouble) return;
+        Lifelines.usedDouble = true;
+        Lifelines.doubleDipActive = true;
+        document.getElementById('ll-double').disabled = true;
+        alert("Double Dip Lifeline Active! You can now guess twice for this question.");
+    }
+}
+
 document.addEventListener('DOMContentLoaded',()=>{sms();pcc();lt()});
 function lt(){const t=localStorage.getItem('qt')||'light';st.th=t;document.documentElement.setAttribute('data-theme',t);uti()}
 function tgt(){st.th=st.th==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',st.th);localStorage.setItem('qt',st.th);uti()}
@@ -4092,11 +5016,11 @@ function uti(){const i=document.querySelector('#tt i');if(i)i.className=st.th===
 function pcc(){document.addEventListener('contextmenu',e=>e.preventDefault());document.addEventListener('copy',e=>e.preventDefault());document.addEventListener('cut',e=>e.preventDefault());document.addEventListener('selectstart',e=>{if(!e.target.tagName.match(/INPUT|TEXTAREA/i))e.preventDefault()})}
 function sms(){const mc=document.querySelectorAll('.mode-card'),sb=document.getElementById('sb');mc.forEach(c=>{c.addEventListener('click',()=>{mc.forEach(x=>x.classList.remove('selected'));c.classList.add('selected');qd.m=c.dataset.mode;sb.disabled=false})});sb.addEventListener('click',sq)}
 function sq(){const ct=document.getElementById('ct'),ctv=parseInt(ct.value);if(ctv&&ctv>0){st.tr=ctv*60;qd.tt=ctv*60}document.body.style.overflow='hidden';document.getElementById('modeSelection').style.display='none';document.getElementById('quizContainer').style.display='block';document.getElementById('mb').textContent=qd.m;document.getElementById('mb').className='mode-badge '+qd.m;iq()}
-function iq(){rq(0);rqg();stt();sn()}
+function iq(){Lifelines.init();VoiceEngine.init();rq(0);rqg();stt();sn()}
 function stt(){utd();st.ti=setInterval(()=>{st.tr--;utd();if(st.tr<=0){clearInterval(st.ti);sbq()}if(st.tr<=60)document.getElementById('td').classList.add('warning')},1000)}
 function utd(){const m=Math.floor(st.tr/60),s=st.tr%60;document.getElementById('tt2').textContent=\`\${String(m).padStart(2,'0')}:\${String(s).padStart(2,'0')}\`}
-function rq(i){st.cq=i;const q=qd.q[i],qs=document.getElementById('qs');let h=\`<div class="question-card"><div class="question-number"><i class="fas fa-question-circle"></i>Question \${i+1} of \${qd.q.length}</div>\`;if(q.ref)h+=\`<div class="question-reference protected-content"><i class="fas fa-info-circle"></i> \${q.ref}</div>\`;h+=\`<div class="question-text protected-content">\${q.txt}</div><div class="options-container">\`;q.opts.forEach((o,x)=>{let bc='option-btn',ic=String.fromCharCode(65+x);const isSel=st.a[i]===x,isCor=x===q.ci,shAns=(qd.m==='practice'&&st.a[i]!==null)||st.sb;if(isSel)bc+=' selected';if(shAns){bc+=' disabled';if(isCor){bc+=' correct';ic='<i class=\"fas fa-check\"></i>'}else if(isSel&&!isCor){bc+=' incorrect';ic='<i class=\"fas fa-times\"></i>'}}h+=\`<button class="\${bc}" data-index="\${x}" onclick="so(\${x})"><div class="option-indicator">\${ic}</div><div class="option-text protected-content">\${o}</div></button>\`});h+=\`</div>\`;const shExp=(qd.m==='practice'&&st.a[i]!==null)||st.sb;if(shExp)h+=\`<div class="explanation-box" style="display:block"><div class="explanation-header"><i class="fas fa-lightbulb"></i>Explanation</div><div class="explanation-text protected-content">\${q.exp}</div></div>\`;h+=\`</div>\`;qs.innerHTML=h;qs.scrollTop=0;up();unb();uqg()}
-function so(oi){if(st.sb)return;if(st.a[st.cq]===oi){st.a[st.cq]=null}else{st.a[st.cq]=oi}rq(st.cq)}
+function rq(i){st.cq=i;const q=qd.q[i],qs=document.getElementById('qs');let h=\`<div class="question-card"><div class="question-number"><i class="fas fa-question-circle"></i>Question \${i+1} of \${qd.q.length}</div>\`;if(q.ref)h+=\`<div class="question-reference protected-content"><i class="fas fa-info-circle"></i> \${q.ref}</div>\`;h+=\`<div class="question-text protected-content">\${q.txt}</div><div class="options-container">\`;q.opts.forEach((o,x)=>{let bc='option-btn',ic=String.fromCharCode(65+x);const isSel=st.a[i]===x,isCor=x===q.ci,shAns=(qd.m==='practice'&&st.a[i]!==null)||st.sb;if(isSel)bc+=' selected';if(shAns){bc+=' disabled';if(isCor){bc+=' correct';ic='<i class=\"fas fa-check\"></i>'}else if(isSel&&!isCor){bc+=' incorrect';ic='<i class=\"fas fa-times\"></i>'}}h+=\`<button class="\${bc}" data-index="\${x}" onclick="so(\${x})"><div class="option-indicator">\${ic}</div><div class="option-text protected-content">\${o}</div></button>\`});h+=\`</div>\`;const shExp=(qd.m==='practice'&&st.a[i]!==null)||st.sb;if(shExp)h+=\`<div class="explanation-box" style="display:block"><div class="explanation-header"><i class="fas fa-lightbulb"></i>Explanation</div><div class="explanation-text protected-content">\${q.exp}</div></div>\`;h+=\`</div>\`;qs.innerHTML=h;qs.scrollTop=0;up();unb();uqg();if(!st.sb && VoiceEngine.enabledQ){VoiceEngine.speakQuestion(q);}}
+function so(oi){if(st.sb)return;const q=qd.q[st.cq];if(Lifelines.doubleDipActive){if(oi!==q.ci){Lifelines.doubleDipActive=false;const btn=document.querySelector('.option-btn[data-index="'+oi+'"]');if(btn){btn.classList.add('incorrect');btn.style.pointerEvents='none';btn.querySelector('.option-indicator').innerHTML='<i class="fas fa-times"></i>';}return;}else{Lifelines.doubleDipActive=false;}}if(st.a[st.cq]===oi){st.a[st.cq]=null}else{st.a[st.cq]=oi}rq(st.cq);if(qd.m==='practice' && st.a[st.cq]!==null && VoiceEngine.enabledExp){VoiceEngine.speakExplanation(q.exp);}}
 function sn(){document.getElementById('pv').addEventListener('click',np);document.getElementById('nx').addEventListener('click',nn);document.getElementById('mk').addEventListener('click',tm);document.getElementById('sm').addEventListener('click',cs);document.getElementById('nt').addEventListener('click',tnp);document.getElementById('nc').addEventListener('click',tnp);document.getElementById('rb').addEventListener('click',ra);document.getElementById('rsb').addEventListener('click',rs);document.getElementById('tt').addEventListener('click',tgt);document.addEventListener('keydown',e=>{if(st.sb)return;if(e.key==='ArrowLeft')np();if(e.key==='ArrowRight')nn()})}
 function np(){if(st.cq>0)rq(st.cq-1)}
 function nn(){if(st.cq<qd.q.length-1)rq(st.cq+1)}
@@ -4207,44 +5131,234 @@ function rs(){document.body.style.overflow='hidden';location.reload()}
             y += 9;
 
             if (resultData) {
-                // Leaderboard header bar
-                doc.setFillColor(30, 58, 138);
-                doc.rect(ML, y, CW, 7.5, 'F');
-                doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
-                doc.text('LEADERBOARD', ML + 5, y + 5.2);
-                y += 10;
+                // ── REPORT CARD SECTION ──
+                let yStart = y;
+                
+                // Section Title: PERFORMANCE REPORT CARD
+                doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text('PERFORMANCE REPORT CARD', PW / 2, yStart, { align: 'center' });
+                yStart += 5;
+                
+                doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(75, 85, 99);
+                doc.text('Participant: ' + safeText(participantName), PW / 2, yStart, { align: 'center' });
+                yStart += 9;
 
-                // Table header
-                const hX = { rank: ML+3, name: ML+20, corr: ML+78, incorr: ML+95, score: ML+113, acc: ML+132, time: ML+158 };
-                doc.setFillColor(240, 244, 255);
-                doc.rect(ML, y, CW, 6.5, 'F');
-                doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
-                doc.text('Rank', hX.rank, y + 4.5);
-                doc.text('Participant', hX.name, y + 4.5);
-                doc.text('Correct', hX.corr, y + 4.5, { align: 'center' });
-                doc.text('Wrong', hX.incorr, y + 4.5, { align: 'center' });
-                doc.text('Score', hX.score, y + 4.5, { align: 'center' });
-                doc.text('Acc%', hX.acc, y + 4.5, { align: 'center' });
-                doc.text('Time', hX.time, y + 4.5, { align: 'center' });
-                y += 6.5;
+                // 2x2 Grid of cards
+                const gridY1 = yStart;
+                const gridH = 20;
+                const cardW = CW / 2 - 3; // 88 mm each
+                const col1X = ML;
+                const col2X = ML + cardW + 6;
 
-                // Data row
-                doc.setFillColor(255, 255, 255);
-                doc.rect(ML, y, CW, 7, 'F');
-                doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.2);
-                doc.rect(ML, y, CW, 7, 'S');
-                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-                doc.text('#1', hX.rank + 3, y + 4.8, { align: 'center' });
-                doc.text(safeText((participantName || 'Participant').slice(0, 28)), hX.name, y + 4.8);
-                doc.setTextColor(16, 185, 129);
-                doc.text(String(resultData.correct), hX.corr, y + 4.8, { align: 'center' });
-                doc.setTextColor(220, 50, 50);
-                doc.text(String(resultData.incorrect), hX.incorr, y + 4.8, { align: 'center' });
-                doc.setTextColor(resultData.score < 0 ? 220 : 30, resultData.score < 0 ? 50 : 100, resultData.score < 0 ? 50 : 50);
-                doc.text(resultData.score.toFixed(2), hX.score, y + 4.8, { align: 'center' });
-                doc.setTextColor(55, 65, 81);
-                doc.text((resultData.accuracy || 0).toFixed(0) + '%', hX.acc, y + 4.8, { align: 'center' });
-                doc.text(safeText(resultData.timeSpent || '---'), hX.time, y + 4.8, { align: 'center' });
+                // Card 1: Score
+                doc.setFillColor(240, 244, 255); doc.setDrawColor(165, 180, 252); doc.setLineWidth(0.3);
+                doc.roundedRect(col1X, gridY1, cardW, gridH, 2, 2, 'FD');
+                doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(79, 70, 229);
+                doc.text('FINAL SCORE', col1X + 5, gridY1 + 5.5);
+                const totalQ = quiz.questions.length;
+                const maxPossibleScore = totalQ * marksPositive;
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text(resultData.score.toFixed(2) + ' / ' + maxPossibleScore.toFixed(0), col1X + 5, gridY1 + 13.5);
+
+                // Card 2: Accuracy
+                const accVal = resultData.accuracy || 0;
+                let accBg = [240, 253, 244]; // Light Green
+                let accBorder = [134, 239, 172]; // Green 300
+                let accText = [21, 128, 61]; // Green 700
+                if (accVal < 50) {
+                    accBg = [254, 242, 242]; // Light Red
+                    accBorder = [252, 165, 165]; // Red 300
+                    accText = [185, 28, 28]; // Red 700
+                } else if (accVal < 75) {
+                    accBg = [254, 243, 199]; // Light Amber
+                    accBorder = [251, 207, 102]; // Amber 300
+                    accText = [180, 83, 9]; // Amber 700
+                }
+                doc.setFillColor(accBg[0], accBg[1], accBg[2]);
+                doc.setDrawColor(accBorder[0], accBorder[1], accBorder[2]);
+                doc.roundedRect(col2X, gridY1, cardW, gridH, 2, 2, 'FD');
+                
+                doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(accText[0], accText[1], accText[2]);
+                doc.text('ACCURACY', col2X + 5, gridY1 + 5.5);
+                
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(accText[0], accText[1], accText[2]);
+                let accTextStr = accVal.toFixed(1) + '%';
+                let accLevel = 'Needs Practice';
+                if (accVal >= 90) accLevel = 'Elite';
+                else if (accVal >= 75) accLevel = 'Good';
+                else if (accVal >= 50) accLevel = 'Average';
+                doc.text(accTextStr + ' (' + accLevel + ')', col2X + 5, gridY1 + 13.5);
+
+                const gridY2 = gridY1 + gridH + 3.5;
+
+                // Card 3: Time Spent
+                doc.setFillColor(254, 243, 199); doc.setDrawColor(253, 230, 138);
+                doc.roundedRect(col1X, gridY2, cardW, gridH, 2, 2, 'FD');
+                doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(180, 83, 9);
+                doc.text('TIME ELAPSED', col1X + 5, gridY2 + 5.5);
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(146, 64, 14);
+                doc.text(safeText(resultData.timeSpent || '---'), col1X + 5, gridY2 + 13.5);
+
+                // Card 4: Avg Speed
+                doc.setFillColor(245, 243, 255); doc.setDrawColor(221, 214, 254);
+                doc.roundedRect(col2X, gridY2, cardW, gridH, 2, 2, 'FD');
+                doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(109, 40, 217);
+                doc.text('AVERAGE SPEED', col2X + 5, gridY2 + 5.5);
+                doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(92, 36, 150);
+                doc.text(safeText(resultData.avgSpeed || '---') + ' / Q', col2X + 5, gridY2 + 13.5);
+
+                let yProgress = gridY2 + gridH + 7;
+
+                // ── ACCURACY DISTRIBUTION BAR ──
+                doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(31, 41, 55);
+                doc.text('ANSWER DISTRIBUTION', ML, yProgress);
+                yProgress += 3.5;
+
+                // Draw segmented progress bar
+                const barH = 5.5;
+                const barW = CW;
+                const totalAnswers = resultData.correct + resultData.incorrect + resultData.unattempted;
+                const corrW = totalAnswers > 0 ? (resultData.correct / totalAnswers) * barW : 0;
+                const incorrW = totalAnswers > 0 ? (resultData.incorrect / totalAnswers) * barW : 0;
+                const unattW = totalAnswers > 0 ? (resultData.unattempted / totalAnswers) * barW : barW;
+
+                doc.setFillColor(229, 231, 235);
+                doc.roundedRect(ML, yProgress, barW, barH, 1.5, 1.5, 'F');
+
+                let currentX = ML;
+                if (corrW > 0) {
+                    doc.setFillColor(34, 197, 94);
+                    doc.rect(currentX, yProgress, corrW, barH, 'F');
+                    currentX += corrW;
+                }
+                if (incorrW > 0) {
+                    doc.setFillColor(239, 68, 68);
+                    doc.rect(currentX, yProgress, incorrW, barH, 'F');
+                    currentX += incorrW;
+                }
+                if (unattW > 0) {
+                    doc.setFillColor(156, 163, 175);
+                    doc.rect(currentX, yProgress, unattW, barH, 'F');
+                }
+
+                doc.setDrawColor(209, 213, 219); doc.setLineWidth(0.35);
+                doc.roundedRect(ML, yProgress, barW, barH, 1.5, 1.5, 'S');
+
+                yProgress += barH + 4.5;
+
+                // Legend markers
+                doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(75, 85, 99);
+                doc.setFillColor(34, 197, 94); doc.rect(ML + 5, yProgress - 2.2, 2.5, 2.5, 'F');
+                doc.text('Correct: ' + resultData.correct, ML + 9, yProgress);
+
+                doc.setFillColor(239, 68, 68); doc.rect(ML + 55, yProgress - 2.2, 2.5, 2.5, 'F');
+                doc.text('Incorrect: ' + resultData.incorrect, ML + 59, yProgress);
+
+                doc.setFillColor(156, 163, 175); doc.rect(ML + 110, yProgress - 2.2, 2.5, 2.5, 'F');
+                doc.text('Unattempted: ' + resultData.unattempted, ML + 114, yProgress);
+                
+                doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
+                doc.text('Best Streak: ' + (quiz.bestStreak || 0), ML + 150, yProgress);
+
+                let yBadges = yProgress + 10;
+
+                // ── ACHIEVEMENTS / BADGES SECTION ──
+                doc.setFontSize(10.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text('ACHIEVEMENTS & BADGES EARNED', ML, yBadges);
+                
+                doc.setDrawColor(245, 158, 11); doc.setLineWidth(0.5);
+                doc.line(ML, yBadges + 1.8, PW - MR, yBadges + 1.8);
+                
+                yBadges += 6.5;
+
+                const badgesList = resultData.badges || [];
+                if (badgesList.length === 0) {
+                    doc.setFillColor(249, 250, 251); doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+                    doc.roundedRect(ML, yBadges, CW, 16, 1.5, 1.5, 'FD');
+                    doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(107, 114, 128);
+                    doc.text('No badges earned in this attempt. Keep practice going with higher speed and accuracy to unlock achievements!', ML + 6, yBadges + 9.5);
+                } else {
+                    const badgeH = 14;
+                    const badgeW = CW / 2 - 3;
+                    doc.setFontSize(8.5);
+                    badgesList.slice(0, 6).forEach((b, bIdx) => {
+                        const colIdx = bIdx % 2;
+                        const rowIdx = Math.floor(bIdx / 2);
+                        const bx = colIdx === 0 ? ML : ML + badgeW + 6;
+                        const by = yBadges + rowIdx * (badgeH + 3);
+
+                        doc.setFillColor(255, 251, 235); doc.setDrawColor(253, 230, 138); doc.setLineWidth(0.25);
+                        doc.roundedRect(bx, by, badgeW, badgeH, 1.5, 1.5, 'FD');
+
+                        doc.setFillColor(245, 158, 11);
+                        doc.circle(bx + 6.5, by + 7, 3.8, 'F');
+                        
+                        const initials = b.name ? b.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'B';
+                        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+                        doc.text(initials, bx + 6.5, by + 9.5, { align: 'center' });
+
+                        doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                        doc.text(safeText(b.name || 'Achievement'), bx + 13.5, by + 5.2);
+
+                        doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(75, 85, 99);
+                        const descTrunc = b.desc.length > 55 ? b.desc.slice(0, 52) + '...' : b.desc;
+                        doc.text(safeText(descTrunc), bx + 13.5, by + 10.2);
+                    });
+                }
+            } else {
+                // ── BOOKLET COVER MODE ──
+                let yStart = y;
+                
+                doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text('OFFICIAL QUESTION BOOKLET', PW / 2, yStart, { align: 'center' });
+                yStart += 7;
+
+                const boxH = 26;
+                doc.setFillColor(248, 250, 252); doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.3);
+                doc.roundedRect(ML, yStart, CW, boxH, 2, 2, 'FD');
+
+                doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(71, 85, 105);
+                doc.text('BOOKLET INFORMATION:', ML + 6, yStart + 6);
+                
+                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(30, 41, 59);
+                const infoLines = [
+                    'Total Questions: ' + quiz.questions.length,
+                    'Marking Scheme: +' + marksPositive + ' for Correct  |  -' + marksNegative + ' for Incorrect',
+                    'Generated on: ' + formattedDate + ' IST'
+                ];
+                infoLines.forEach((line, li) => {
+                    doc.text('• ' + safeText(line), ML + 8, yStart + 11.5 + li * 4.5);
+                });
+
+                yStart += boxH + 10;
+
+                doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text('GENERAL INSTRUCTIONS', ML, yStart);
+                
+                doc.setDrawColor(30, 58, 138); doc.setLineWidth(0.5);
+                doc.line(ML, yStart + 1.8, PW - MR, yStart + 1.8);
+                
+                yStart += 6.5;
+
+                const insts = [
+                    'All questions in this booklet are multiple choice questions (MCQs) with exactly one correct option.',
+                    'Read the complete question text and references carefully before selecting your option.',
+                    'The marking scheme applies strictly: positive marks are added for correct answers, and negative marks are deducted for wrong answers.',
+                    'Unattempted questions receive zero marks and do not affect your scoring streak.',
+                    'This booklet was generated automatically by the Quiz Bot Simulator and contains verified answer keys and explanations at the end of each question card.',
+                    'Do not distribute or share answer keys prior to active group sessions.'
+                ];
+
+                doc.setFillColor(254, 254, 255); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.25);
+                doc.roundedRect(ML, yStart, CW, 75, 2, 2, 'FD');
+
+                let iy = yStart + 7;
+                insts.forEach((inst, insIdx) => {
+                    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(51, 65, 85);
+                    const instSplit = doc.splitTextToSize((insIdx + 1) + '.  ' + inst, CW - 12);
+                    doc.text(instSplit, ML + 6, iy);
+                    iy += instSplit.length * 3.8 + 2.5;
+                });
             }
 
             addFooter();
