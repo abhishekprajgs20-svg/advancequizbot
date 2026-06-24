@@ -910,13 +910,17 @@
                 </div>
             </div>
 
-            <!-- Chat Message Feed -->
-            <div class="chat-history" id="chat-history">
-                <div class="chat-message bot">
-                    <div class="message-bubble">
-                        <strong>Telegram Quiz Bot 🤖</strong><br>
-                        Welcome! I am your interactive Telegram Quiz Bot. You can create, manage, and play gamified quizzes directly here.<br><br>
-                        Type <strong>/help</strong> to see all available commands or use the shortcut buttons below!
+            <!-- Chat Viewport Wrapper -->
+            <div style="flex-grow: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;">
+                <video id="chat-video-bg" autoplay loop muted playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; display: none;"></video>
+                <!-- Chat Message Feed -->
+                <div class="chat-history" id="chat-history" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+                    <div class="chat-message bot">
+                        <div class="message-bubble">
+                            <strong>Telegram Quiz Bot 🤖</strong><br>
+                            Welcome! I am your interactive Telegram Quiz Bot. You can create, manage, and play gamified quizzes directly here.<br><br>
+                            Type <strong>/help</strong> to see all available commands or use the shortcut buttons below!
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1072,8 +1076,8 @@
                     </div>
                     
                     <div style="margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px; text-align: left;">
-                        <label style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Upload Custom Image</label>
-                        <input type="file" id="wallpaper-upload-input" accept="image/*" onchange="uploadCustomWallpaper(event)" style="display: none;">
+                        <label style="color: var(--text-muted); font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block;">Upload Custom Image / Video (MP4)</label>
+                        <input type="file" id="wallpaper-upload-input" accept="image/*,video/mp4" onchange="uploadCustomWallpaper(event)" style="display: none;">
                         <button class="primary-btn" onclick="document.getElementById('wallpaper-upload-input').click()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); width: 100%;">
                             <i class="fa-solid fa-cloud-arrow-up"></i> Upload From Device
                         </button>
@@ -2467,14 +2471,21 @@
 
         function setChatWallpaper(type, customData = null) {
             const chatHistory = document.getElementById('chat-history');
+            const videoBg = document.getElementById('chat-video-bg');
             if (!chatHistory) return;
 
-            chatHistory.style.backgroundImage = '';
+            // Reset styles to transparent/none to allow correct overrides
+            chatHistory.style.backgroundImage = 'none';
             chatHistory.style.backgroundSize = '';
             chatHistory.style.backgroundPosition = '';
             chatHistory.style.animation = '';
-            chatHistory.style.backgroundColor = '';
+            chatHistory.style.backgroundColor = 'transparent';
             chatHistory.style.backgroundBlendMode = '';
+
+            if (videoBg) {
+                videoBg.style.display = 'none';
+                videoBg.src = '';
+            }
 
             if (type.startsWith('solid-')) {
                 const colorMap = {
@@ -2489,7 +2500,7 @@
                     'grad-sunset': 'linear-gradient(135deg, #4b1212, #6b2d2d, #141f29)',
                     'grad-telegram': 'linear-gradient(135deg, #182533, #2b5278, #182533)'
                 };
-                chatHistory.style.backgroundImage = gradMap[type] || '';
+                chatHistory.style.backgroundImage = gradMap[type] || 'none';
             } else if (type === 'live-stars') {
                 chatHistory.style.backgroundImage = 'linear-gradient(-45deg, #090a0f, #181d33, #0b0c16, #1f2747)';
                 chatHistory.style.backgroundSize = '300% 300%';
@@ -2503,9 +2514,17 @@
                 chatHistory.style.backgroundBlendMode = 'overlay';
                 chatHistory.style.backgroundColor = '#0e1621';
             } else if (type === 'custom' && customData) {
-                chatHistory.style.backgroundImage = `url(${customData})`;
-                chatHistory.style.backgroundSize = 'cover';
-                chatHistory.style.backgroundPosition = 'center';
+                if (customData.startsWith('data:video/')) {
+                    if (videoBg) {
+                        videoBg.src = customData;
+                        videoBg.style.display = 'block';
+                        videoBg.play().catch(e => console.warn("Video autoplay failed:", e));
+                    }
+                } else {
+                    chatHistory.style.backgroundImage = `url(${customData})`;
+                    chatHistory.style.backgroundSize = 'cover';
+                    chatHistory.style.backgroundPosition = 'center';
+                }
             }
 
             localStorage.setItem('chat_wallpaper_type', type);
@@ -2513,7 +2532,7 @@
                 try {
                     localStorage.setItem('chat_wallpaper_data', customData);
                 } catch(e) {
-                    console.warn("Custom wallpaper image too large for LocalStorage!");
+                    console.warn("Custom wallpaper file too large for LocalStorage!");
                 }
             } else {
                 localStorage.removeItem('chat_wallpaper_data');
@@ -2525,7 +2544,7 @@
             if (!file) return;
 
             if (file.size > 2 * 1024 * 1024) {
-                alert("Please select an image smaller than 2MB to fit local browser storage limits!");
+                alert("Please select a file smaller than 2MB to fit local browser storage limits!");
                 return;
             }
 
