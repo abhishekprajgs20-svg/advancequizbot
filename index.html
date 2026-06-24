@@ -885,13 +885,20 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 15px; z-index: 11;">
                     <!-- TTS Controls -->
-                    <div style="display: flex; gap: 10px; font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 6px 10px; border-radius: 8px;">
+                    <div style="display: flex; gap: 10px; font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 6px 10px; border-radius: 8px; align-items: center;">
                         <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="tts-read-q" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-volume-high"></i> Read Q
                         </label>
                         <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="tts-read-exp" style="accent-color: var(--telegram-blue);"> <i class="fa-solid fa-comment-dots"></i> Read Exp
                         </label>
+                        <div style="width: 1px; height: 16px; background: var(--glass-border);"></div>
+                        <button id="sound-toggle-btn" onclick="AudioEngine.toggleMute()" class="input-icon-btn" title="Sound On — Click to Mute" style="font-size: 1rem; padding: 0 2px;">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </button>
+                        <button id="kbd-hud-toggle-btn" onclick="toggleKbdHud()" class="input-icon-btn" title="Keyboard Shortcuts" style="font-size: 0.95rem; padding: 0 2px; color: var(--text-muted);">
+                            <i class="fa-solid fa-keyboard"></i>
+                        </button>
                     </div>
                     
                     <div class="sticky-stats-bar" id="sticky-stats-bar">
@@ -3026,11 +3033,13 @@
                 });
                 
                 printMsg('bot', "🌓 <b>50:50 Lifeline Used!</b> Two incorrect options have been hidden.", true);
+                AudioEngine.lifeline();
             } 
             else if (type === 'poll') {
                 if (activeQuiz.lifelines.usedPoll) return;
                 activeQuiz.lifelines.usedPoll = true;
                 document.getElementById('ll-poll').disabled = true;
+                AudioEngine.lifeline();
                 
                 const pollData = [];
                 let correctPct = Math.floor(Math.random() * 25) + 50; 
@@ -3091,6 +3100,7 @@
                 document.getElementById('ll-double').disabled = true;
                 
                 printMsg('bot', "2️⃣ <b>Double Dip Used!</b> You can now select up to 2 options for this question. If the first choice is wrong, you will get another chance.", true);
+                AudioEngine.lifeline();
             }
         }
         
@@ -3148,9 +3158,13 @@
         const stickyStatsBar = document.getElementById('sticky-stats-bar');
         const configModal = document.getElementById('config-modal');
 
-        // Retro-game Sound Synthesis Engine
+        // ═══════════════════════════════════════════════
+        // 🎵 ENHANCED AUDIO ENGINE — Rich Sound Design
+        // ═══════════════════════════════════════════════
         const AudioEngine = {
             ctx: null,
+            muted: false,
+
             init() {
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -3159,42 +3173,131 @@
                     this.ctx.resume();
                 }
             },
-            play(freq, type, duration, vol = 0.08) {
+
+            toggleMute() {
+                this.muted = !this.muted;
+                const btn = document.getElementById('sound-toggle-btn');
+                if (btn) {
+                    btn.innerHTML = this.muted
+                        ? '<i class="fa-solid fa-volume-xmark"></i>'
+                        : '<i class="fa-solid fa-volume-high"></i>';
+                    btn.title = this.muted ? 'Sound Off — Click to Enable' : 'Sound On — Click to Mute';
+                    btn.style.color = this.muted ? 'var(--danger)' : 'var(--text-muted)';
+                }
+                localStorage.setItem('audio_muted', this.muted);
+                if (!this.muted) this.click();
+            },
+
+            /* Core synthesizer: oscillator + optional detune for richness */
+            _osc(freq, type, dur, vol = 0.08, detune = 0, delay = 0) {
+                if (this.muted) return;
                 try {
                     this.init();
-                    const osc = this.ctx.createOscillator();
+                    const t = this.ctx.currentTime + delay;
+                    const osc  = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = type;
-                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.frequency.setValueAtTime(freq, t);
+                    if (detune) osc.detune.setValueAtTime(detune, t);
+                    gain.gain.setValueAtTime(0.001, t);
+                    gain.gain.linearRampToValueAtTime(vol, t + 0.005);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
                     osc.connect(gain);
                     gain.connect(this.ctx.destination);
-                    osc.start();
-                    osc.stop(this.ctx.currentTime + duration);
-                } catch(e){}
+                    osc.start(t);
+                    osc.stop(t + dur);
+                } catch(e) {}
             },
+
+            /* Layered note: sine + triangle for warmth */
+            _chord(freq, dur, vol = 0.07, delay = 0) {
+                this._osc(freq,       'sine',     dur, vol,      0,  delay);
+                this._osc(freq,       'triangle', dur, vol*0.4, +5,  delay);
+                this._osc(freq * 2,   'sine',     dur, vol*0.15, 0,  delay);
+            },
+
+            /* ✅ CORRECT — uplifting major triad arpeggio */
             correct() {
-                this.play(523.25, 'sine', 0.15); // C5
-                setTimeout(() => this.play(659.25, 'sine', 0.15), 80); // E5
-                setTimeout(() => this.play(783.99, 'sine', 0.2), 160); // G5
+                const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+                notes.forEach((n, i) => this._chord(n, 0.25, 0.09, i * 0.07));
             },
+
+            /* ❌ WRONG — descending thud with buzzy sawtooth */
             wrong() {
-                this.play(200, 'sawtooth', 0.3, 0.12); // G3
+                this._osc(300, 'sawtooth', 0.08, 0.10);
+                this._osc(220, 'sawtooth', 0.18, 0.09, 0, 0.06);
+                this._osc(180, 'sine',     0.30, 0.07, 0, 0.12);
             },
-            click() {
-                this.play(800, 'sine', 0.04, 0.04);
-            },
+
+            /* ⏱ TICK — sharp click for final countdown */
             tick() {
-                this.play(1000, 'sine', 0.02, 0.02);
+                this._osc(1200, 'square', 0.025, 0.03);
             },
+
+            /* ⚡ URGENT TICK — double-click pulse at last 5s */
+            urgentTick() {
+                this._osc(1400, 'square', 0.02, 0.04);
+                this._osc(1400, 'square', 0.02, 0.04, 0, 0.08);
+            },
+
+            /* 🖱 CLICK — soft UI interaction sound */
+            click() {
+                this._osc(900, 'sine', 0.045, 0.035);
+            },
+
+            /* ⌨️ KEY — keyboard shortcut press feedback */
+            keyPress() {
+                this._osc(660, 'sine',  0.06, 0.05);
+                this._osc(880, 'sine',  0.04, 0.02, 0, 0.03);
+            },
+
+            /* ⏸ PAUSE — gentle descending whoosh */
+            pause() {
+                [440, 392, 349].forEach((n, i) => this._osc(n, 'sine', 0.12, 0.06, 0, i * 0.06));
+            },
+
+            /* ▶️ RESUME — ascending whoosh */
+            resume() {
+                [349, 392, 440, 523].forEach((n, i) => this._chord(n, 0.10, 0.055, i * 0.05));
+            },
+
+            /* ⏭ SKIP — quick swipe sound */
+            skip() {
+                this._osc(500, 'sine', 0.05, 0.06);
+                this._osc(700, 'sine', 0.05, 0.05, 0, 0.04);
+                this._osc(900, 'sine', 0.05, 0.04, 0, 0.07);
+            },
+
+            /* 🔥 STREAK — sizzling ascending burst */
+            streak(n) {
+                const base = [523, 659, 784, 1046, 1318];
+                const count = Math.min(n, 5);
+                base.slice(0, count).forEach((f, i) => this._chord(f, 0.18, 0.07, i * 0.06));
+            },
+
+            /* 🏆 FANFARE — triumphant quiz end */
             fanfare() {
-                const notes = [523, 659, 784, 1046, 1318];
-                notes.forEach((n, idx) => {
-                    setTimeout(() => this.play(n, 'triangle', 0.15, 0.06), idx * 80);
+                const melody = [523, 523, 659, 523, 784, 740, 523, 523, 659, 523, 880, 784];
+                const timing = [0, 0.12, 0.24, 0.36, 0.48, 0.66, 0.84, 0.96, 1.08, 1.20, 1.32, 1.50];
+                melody.forEach((n, i) => this._chord(n, 0.18, 0.08, timing[i]));
+            },
+
+            /* 🌟 LIFELINE — magical shimmer */
+            lifeline() {
+                [1046, 1318, 1568, 2093].forEach((n, i) => {
+                    this._osc(n, 'sine', 0.20, 0.05, 0,   i * 0.05);
+                    this._osc(n, 'sine', 0.20, 0.02, +15, i * 0.05);
                 });
+            },
+
+            /* 🎬 QUIZ START — dramatic countdown beeps */
+            quizStart() {
+                [300, 350, 400, 600].forEach((n, i) => this._chord(n, 0.15, 0.06, i * 0.18));
             }
         };
+
+        // Restore mute preference
+        AudioEngine.muted = localStorage.getItem('audio_muted') === 'true';
 
         // Scroll helper
         function scrollToBottom() {
@@ -3837,6 +3940,9 @@
 
             printMsg('bot', `🎬 <b>Launching Battle: ${activeQuiz.name}!</b>\n\nTotal Questions: ${activeQuiz.questions.length}\nTimer: ${activeQuiz.timerLimit}s / Q\nCorrect: +${marksPositive} | Wrong: -${marksNegative}\n\n<i>Get ready... 🧠</i>`, true);
 
+            // Play dramatic quiz-start sound
+            AudioEngine.quizStart();
+
             // Display header stats
             stickyStatsBar.classList.add('active');
             updateStickyStats();
@@ -3947,6 +4053,8 @@
                     clearInterval(timerInterval);
                     processTimeout();
                 } else if (activeQuiz.timeLeft <= 3) {
+                    AudioEngine.urgentTick();
+                } else if (activeQuiz.timeLeft <= 6) {
                     AudioEngine.tick();
                 }
             }, activeQuiz.timerRate);
@@ -4021,6 +4129,7 @@
                 bubble.textContent = `+${marksPositive}`;
 
                 if (activeQuiz.streak % 5 === 0) {
+                    AudioEngine.streak(activeQuiz.streak / 5);
                     triggerStreakConfetti();
                 }
             } else {
@@ -7276,6 +7385,420 @@ function rs(){document.body.style.overflow='hidden';location.reload()}
                 };
             }
         };
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- ⌨️  KEYBOARD SHORTCUT HUD (injected into chat-area)        -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <style>
+        /* ── Keyboard HUD ── */
+        #kbd-hud {
+            position: fixed;
+            bottom: 90px;
+            right: 18px;
+            z-index: 200;
+            background: rgba(15, 24, 33, 0.96);
+            border: 1px solid rgba(36, 129, 204, 0.35);
+            border-radius: 16px;
+            padding: 14px 16px;
+            width: 220px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+            font-family: 'Inter', sans-serif;
+            backdrop-filter: blur(12px);
+            transition: opacity 0.25s, transform 0.25s;
+            opacity: 0;
+            transform: translateY(10px) scale(0.97);
+            pointer-events: none;
+        }
+        #kbd-hud.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        #kbd-hud .hud-title {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--telegram-blue);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #kbd-hud .hud-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+        }
+        #kbd-hud .hud-label {
+            color: var(--text-muted);
+            font-size: 0.73rem;
+        }
+        #kbd-hud .hud-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.05);
+            margin: 8px 0;
+        }
+        .kbd-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 2px solid rgba(255,255,255,0.22);
+            border-radius: 5px;
+            padding: 2px 7px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'Outfit', monospace;
+            min-width: 22px;
+            text-align: center;
+            line-height: 1.5;
+            user-select: none;
+            transition: background 0.12s, transform 0.08s;
+        }
+        .kbd-key.active-press {
+            background: rgba(36, 129, 204, 0.35) !important;
+            border-color: var(--telegram-blue) !important;
+            transform: translateY(1px);
+        }
+
+        /* ── Floating toast for key-press feedback ── */
+        #kbd-toast {
+            position: fixed;
+            bottom: 155px;
+            right: 18px;
+            z-index: 210;
+            background: rgba(36, 129, 204, 0.92);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+            box-shadow: 0 4px 16px rgba(36, 129, 204, 0.45);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.15s, transform 0.15s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #kbd-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Option button key-hint badge ── */
+        .opt-key-hint {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: rgba(36, 129, 204, 0.18);
+            border: 1px solid rgba(36, 129, 204, 0.3);
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--telegram-blue);
+            margin-right: 4px;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .quiz-opt-btn:hover .opt-key-hint,
+        .quiz-opt-btn.key-highlight .opt-key-hint {
+            background: rgba(36, 129, 204, 0.4);
+        }
+        .quiz-opt-btn.key-highlight {
+            border-color: var(--telegram-blue) !important;
+            background: rgba(36, 129, 204, 0.1) !important;
+            transform: translateX(6px) !important;
+        }
+
+        /* ── Sound toggle muted state ── */
+        #sound-toggle-btn.muted-state {
+            color: var(--danger) !important;
+        }
+    </style>
+
+    <!-- HUD markup (will be moved into .chat-area by JS) -->
+    <div id="kbd-hud">
+        <div class="hud-title"><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</div>
+
+        <div class="hud-row">
+            <span class="hud-label">Answer A / B / C / D</span>
+            <span>
+                <span class="kbd-key" id="kkey-1">1</span>
+                <span class="kbd-key" id="kkey-2">2</span>
+                <span class="kbd-key" id="kkey-3">3</span>
+                <span class="kbd-key" id="kkey-4">4</span>
+            </span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <div class="hud-row">
+            <span class="hud-label">Skip Question</span>
+            <span class="kbd-key" id="kkey-space">Space</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Pause / Resume</span>
+            <span class="kbd-key" id="kkey-p">P</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Stop Quiz</span>
+            <span class="kbd-key" id="kkey-esc">Esc</span>
+        </div>
+
+        <div class="hud-divider"></div>
+
+        <div class="hud-row">
+            <span class="hud-label">Mute / Unmute</span>
+            <span class="kbd-key" id="kkey-m">M</span>
+        </div>
+        <div class="hud-row">
+            <span class="hud-label">Toggle This HUD</span>
+            <span class="kbd-key" id="kkey-k">K</span>
+        </div>
+
+        <div class="hud-divider"></div>
+        <div style="font-size: 0.62rem; color: var(--text-muted); text-align: center; margin-top: 2px;">
+            ⚡ Keys active only during quiz
+        </div>
+    </div>
+
+    <!-- Toast notification element -->
+    <div id="kbd-toast"></div>
+
+    <script>
+    // ═══════════════════════════════════════════════════════════
+    // ⌨️  KEYBOARD SHORTCUT SYSTEM
+    // ═══════════════════════════════════════════════════════════
+
+    let kbdHudVisible = false;
+
+    function toggleKbdHud() {
+        kbdHudVisible = !kbdHudVisible;
+        const hud = document.getElementById('kbd-hud');
+        const btn = document.getElementById('kbd-hud-toggle-btn');
+        if (kbdHudVisible) {
+            hud.classList.add('visible');
+            if (btn) btn.style.color = 'var(--telegram-blue)';
+        } else {
+            hud.classList.remove('visible');
+            if (btn) btn.style.color = '';
+        }
+        AudioEngine.click();
+    }
+
+    /* Flash a HUD key visually */
+    function flashHudKey(keyId) {
+        const el = document.getElementById('kkey-' + keyId);
+        if (!el) return;
+        el.classList.add('active-press');
+        setTimeout(() => el.classList.remove('active-press'), 200);
+    }
+
+    /* Show floating toast */
+    let toastTimeout = null;
+    function showKbdToast(msg) {
+        const toast = document.getElementById('kbd-toast');
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => toast.classList.remove('show'), 1100);
+    }
+
+    /* Flash the answer button in the current card for keyboard selections */
+    function flashOptionBtn(optIdx) {
+        const qIdx = activeQuiz.currQIdx;
+        const container = document.getElementById('opts-' + qIdx);
+        if (!container) return;
+        const btns = container.querySelectorAll('.quiz-opt-btn');
+        if (!btns[optIdx]) return;
+        btns[optIdx].classList.add('key-highlight');
+        setTimeout(() => btns[optIdx].classList.remove('key-highlight'), 180);
+    }
+
+    /* Simulate clicking option index 0–3 on current question */
+    function triggerOptionByKeyboard(optIdx) {
+        if (!activeQuiz.running || activeQuiz.isPaused) return;
+        const qIdx = activeQuiz.currQIdx;
+        const container = document.getElementById('opts-' + qIdx);
+        if (!container) return;
+        const btns = container.querySelectorAll('.quiz-opt-btn:not(:disabled)');
+        // Find visible buttons
+        const visible = Array.from(container.querySelectorAll('.quiz-opt-btn')).filter(b => b.style.opacity !== '0');
+        if (visible[optIdx] && !visible[optIdx].disabled) {
+            AudioEngine.keyPress();
+            visible[optIdx].click();
+        }
+    }
+
+    /* Main keyboard listener — only hijacks keys when quiz is active
+       and user is NOT typing in any input/textarea */
+    document.addEventListener('keydown', function(e) {
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isTyping = (tag === 'input' || tag === 'textarea' || document.activeElement.isContentEditable);
+
+        // K — toggle HUD (works anytime, not while typing)
+        if (e.key === 'k' || e.key === 'K') {
+            if (!isTyping) {
+                flashHudKey('k');
+                toggleKbdHud();
+                return;
+            }
+        }
+
+        // M — mute toggle (anytime, not while typing)
+        if (e.key === 'm' || e.key === 'M') {
+            if (!isTyping) {
+                flashHudKey('m');
+                AudioEngine.toggleMute();
+                showKbdToast(AudioEngine.muted ? '🔇 Sound Muted' : '🔊 Sound On');
+                return;
+            }
+        }
+
+        // All quiz-active shortcuts below
+        if (!activeQuiz.running) return;
+        if (isTyping) return;
+
+        switch (e.key) {
+            case '1':
+                flashHudKey('1');
+                AudioEngine.keyPress();
+                showKbdToast('⌨️ Option A');
+                triggerOptionByKeyboard(0);
+                e.preventDefault();
+                break;
+            case '2':
+                flashHudKey('2');
+                AudioEngine.keyPress();
+                showKbdToast('⌨️ Option B');
+                triggerOptionByKeyboard(1);
+                e.preventDefault();
+                break;
+            case '3':
+                flashHudKey('3');
+                AudioEngine.keyPress();
+                showKbdToast('⌨️ Option C');
+                triggerOptionByKeyboard(2);
+                e.preventDefault();
+                break;
+            case '4':
+                flashHudKey('4');
+                AudioEngine.keyPress();
+                showKbdToast('⌨️ Option D');
+                triggerOptionByKeyboard(3);
+                e.preventDefault();
+                break;
+            case ' ':
+            case 'Spacebar':
+                flashHudKey('space');
+                AudioEngine.skip();
+                showKbdToast('⏭ Skipped');
+                sendMenuCommand('/skip');
+                e.preventDefault();
+                break;
+            case 'p':
+            case 'P':
+                flashHudKey('p');
+                if (activeQuiz.isPaused) {
+                    AudioEngine.resume();
+                    showKbdToast('▶️ Resumed');
+                    sendMenuCommand('/resume');
+                } else {
+                    AudioEngine.pause();
+                    showKbdToast('⏸ Paused');
+                    sendMenuCommand('/pause');
+                }
+                e.preventDefault();
+                break;
+            case 'Escape':
+                flashHudKey('esc');
+                if (confirm('Stop the current quiz?')) {
+                    AudioEngine.click();
+                    showKbdToast('🛑 Quiz Stopped');
+                    sendMenuCommand('/stop');
+                }
+                e.preventDefault();
+                break;
+        }
+    });
+
+    // ── Auto-show HUD for 4s when quiz starts, then hide ──
+    const _origStartSession = typeof startActiveQuizSession !== 'undefined' ? startActiveQuizSession : null;
+    // We patch into the quiz start by intercepting the next invocation
+    (function patchQuizStart() {
+        const orig = window.startActiveQuizSession;
+        if (!orig) { setTimeout(patchQuizStart, 300); return; }
+        window.startActiveQuizSession = function() {
+            orig.apply(this, arguments);
+            // Show HUD briefly
+            const hud = document.getElementById('kbd-hud');
+            if (hud && !kbdHudVisible) {
+                hud.classList.add('visible');
+                showKbdToast('⌨️ Keyboard shortcuts active!');
+                setTimeout(() => {
+                    if (!kbdHudVisible) hud.classList.remove('visible');
+                }, 4000);
+            }
+            // Play quiz start sound
+            AudioEngine.quizStart();
+        };
+    })();
+
+    // ── Update sound toggle button to match saved state ──
+    (function syncSoundBtn() {
+        const btn = document.getElementById('sound-toggle-btn');
+        if (!btn) { setTimeout(syncSoundBtn, 100); return; }
+        if (AudioEngine.muted) {
+            btn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+            btn.title = 'Sound Off — Click to Enable';
+            btn.style.color = 'var(--danger)';
+        }
+    })();
+
+    // ── Inject key-hint badges into option buttons when they render ──
+    // We patch loadChatQuestionCard to add number hints to options
+    (function patchLoadCard() {
+        const orig = window.loadChatQuestionCard;
+        if (!orig) { setTimeout(patchLoadCard, 300); return; }
+        window.loadChatQuestionCard = function(idx) {
+            orig.apply(this, arguments);
+            // After a tick (so DOM is built), inject key hint spans
+            setTimeout(() => {
+                const container = document.getElementById('opts-' + idx);
+                if (!container) return;
+                const btns = container.querySelectorAll('.quiz-opt-btn');
+                btns.forEach((btn, i) => {
+                    if (i >= 4) return;
+                    const hint = document.createElement('span');
+                    hint.className = 'opt-key-hint';
+                    hint.textContent = (i + 1).toString();
+                    hint.title = `Press ${i + 1} to select`;
+                    btn.insertBefore(hint, btn.firstChild);
+                });
+            }, 30);
+        };
+    })();
+
+    // ── Patch fanfare to use new rich version ──
+    // (Already replaced in AudioEngine above — nothing needed)
+
+    // ── Patch pause/resume commands to play sounds ──
+    (function patchPauseResume() {
+        const origSend = window.sendMessage;
+        if (!origSend) { setTimeout(patchPauseResume, 300); return; }
+        // sounds are triggered by keyboard handler already; 
+        // sidebar buttons will benefit from AudioEngine.click which is already called
+    })();
+
     </script>
 </body>
 </html>
