@@ -275,6 +275,207 @@
             100% { background-position: 0% 50%; }
         }
 
+        /* ═══ SHAKE ANIMATION for wrong answers ═══ */
+        @keyframes shakeCard {
+            0%,100%{transform:translateX(0)}
+            15%{transform:translateX(-8px) rotate(-1deg)}
+            30%{transform:translateX(8px) rotate(1deg)}
+            45%{transform:translateX(-6px)}
+            60%{transform:translateX(6px)}
+            75%{transform:translateX(-3px)}
+            90%{transform:translateX(3px)}
+        }
+        .shake-anim { animation: shakeCard 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+
+        /* ═══ MEGA WIN OVERLAY ═══ */
+        #mega-win-overlay {
+            position: fixed; inset: 0; z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.82); pointer-events: none; opacity: 0;
+            transition: opacity 0.4s;
+        }
+        #mega-win-overlay.active { opacity: 1; pointer-events: auto; }
+        #mega-win-overlay .mw-trophy {
+            font-size: 6rem; animation: trophyReveal 0.8s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        @keyframes trophyReveal {
+            0%{transform:scale(0) rotate(-30deg);opacity:0}
+            100%{transform:scale(1) rotate(0);opacity:1}
+        }
+        #mega-win-overlay .mw-text {
+            font-family: 'Outfit', sans-serif; font-size: 2.5rem; font-weight: 800;
+            color: #f59e0b; text-shadow: 0 0 30px rgba(245,158,11,0.8);
+            animation: trophyReveal 0.9s 0.2s cubic-bezier(.34,1.56,.64,1) both;
+            margin-top: 16px;
+        }
+        #mega-win-overlay .mw-sub {
+            font-size: 1.1rem; color: rgba(255,255,255,0.7);
+            animation: trophyReveal 1s 0.4s cubic-bezier(.34,1.56,.64,1) both;
+            margin-top: 8px;
+        }
+        @keyframes screenShake {
+            0%,100%{transform:translate(0,0)}
+            10%{transform:translate(-4px,-4px)}
+            20%{transform:translate(4px,4px)}
+            30%{transform:translate(-4px,4px)}
+            40%{transform:translate(4px,-4px)}
+            50%{transform:translate(-6px,0)}
+            60%{transform:translate(6px,0)}
+            70%{transform:translate(0,-6px)}
+            80%{transform:translate(0,6px)}
+            90%{transform:translate(-2px,2px)}
+        }
+        .screen-shake { animation: screenShake 0.5s ease-in-out; }
+
+        /* ═══ LIVE PARTICLE CANVAS ═══ */
+        #particle-canvas {
+            position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            opacity: 0.55;
+        }
+
+        /* ═══ STATS DASHBOARD PANEL ═══ */
+        #stats-panel {
+            position: fixed; top: 0; right: -480px; width: 460px; height: 100vh;
+            background: linear-gradient(160deg, #0d1b2a 0%, #17212b 60%, #0e1621 100%);
+            border-left: 1px solid rgba(36,129,204,0.3);
+            z-index: 200; transition: right 0.4s cubic-bezier(.77,0,.18,1);
+            overflow-y: auto; padding: 24px 20px;
+            box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+        }
+        #stats-panel.open { right: 0; }
+        #stats-panel::-webkit-scrollbar { width: 4px; }
+        #stats-panel::-webkit-scrollbar-thumb { background: var(--telegram-blue); border-radius: 2px; }
+        .stats-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .stats-panel-header h2 {
+            font-family: 'Outfit', sans-serif; font-size: 1.4rem;
+            background: linear-gradient(135deg, #2481cc, #ec4899);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .stats-close-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-main); width: 34px; height: 34px; border-radius: 50%;
+            cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+        }
+        .stat-card-title {
+            font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.8px; font-weight: 700; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .stat-label { font-size: 0.82rem; color: var(--text-muted); }
+        .stat-value { font-size: 0.92rem; font-weight: 700; color: var(--text-main); }
+        .mini-bar-wrap { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        .mini-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+        .subject-chip {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(36,129,204,0.15); border: 1px solid rgba(36,129,204,0.3);
+            color: #50a2e3; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+            margin: 3px;
+        }
+        #scatter-canvas {
+            width: 100%; height: 160px; border-radius: 10px;
+            background: rgba(0,0,0,0.3); display: block;
+        }
+        .speed-accuracy-label {
+            font-size: 0.68rem; color: var(--text-muted); text-align: center; margin-top: 4px;
+        }
+
+        /* ═══ BLITZ / SURVIVAL STATUS BAR ═══ */
+        #special-mode-bar {
+            display: none; align-items: center; gap: 12px;
+            background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3);
+            padding: 8px 16px; margin: 0 20px 8px; border-radius: 10px;
+        }
+        #special-mode-bar.active { display: flex; }
+        #special-mode-bar .smb-label { font-size: 0.8rem; font-weight: 700; color: var(--gold); }
+        #special-mode-bar .smb-val { font-size: 0.88rem; font-weight: 800; color: var(--text-main); }
+        .smb-lives { display: flex; gap: 4px; }
+        .smb-heart { font-size: 0.9rem; }
+
+        /* ═══ ANIMATED THEMES ═══ */
+        /* Cyberpunk */
+        body.theme-cyberpunk {
+            --telegram-blue: #00ffe5; --bg-dark: #0a001a; --chat-bg: #0e0020;
+            --card-bg: #150030; --bubble-bot: #0e0020; --bubble-user: #1a003a;
+            --text-main: #e0f7ff; --success: #00ffe5; --gold: #ff00aa;
+        }
+        body.theme-cyberpunk .chat-area { background: #08001a; }
+        body.theme-cyberpunk .sidebar, body.theme-cyberpunk .chat-header, body.theme-cyberpunk .chat-input-area { background: #0a0020; }
+        body.theme-cyberpunk .quiz-card-bubble { border-color: rgba(0,255,229,0.25); }
+        body.theme-cyberpunk .quiz-opt-btn:hover:not(:disabled) { border-color: #00ffe5; box-shadow: 0 0 8px rgba(0,255,229,0.4); }
+
+        /* Neon */
+        body.theme-neon {
+            --telegram-blue: #ff00ff; --bg-dark: #050010; --chat-bg: #07001a;
+            --card-bg: #0f0028; --bubble-bot: #07001a; --bubble-user: #1a003a;
+            --text-main: #fff0ff; --success: #00ff88; --gold: #ffe600;
+        }
+        body.theme-neon .chat-area { background: #050010; }
+        body.theme-neon .sidebar, body.theme-neon .chat-header, body.theme-neon .chat-input-area { background: #080015; }
+        body.theme-neon .quiz-opt-btn:hover:not(:disabled) { box-shadow: 0 0 12px rgba(255,0,255,0.5); }
+
+        /* Space */
+        body.theme-space {
+            --telegram-blue: #4facfe; --bg-dark: #020010; --chat-bg: #040018;
+            --card-bg: #0a0028; --bubble-bot: #040018; --bubble-user: #0d0040;
+            --text-main: #ddeeff; --success: #00d4ff; --gold: #ffcc44;
+        }
+        body.theme-space .chat-area { background: radial-gradient(ellipse at 50% 50%, #0a0030 0%, #020010 100%); }
+
+        /* Galaxy */
+        body.theme-galaxy {
+            --telegram-blue: #9b59b6; --bg-dark: #050008; --chat-bg: #08000e;
+            --card-bg: #0f0018; --bubble-bot: #08000e; --bubble-user: #1a0030;
+            --text-main: #f0e8ff; --success: #00ff88; --gold: #ff9933;
+        }
+        body.theme-galaxy .chat-area { background: radial-gradient(ellipse at 30% 60%, #1a0040 0%, #050008 80%); }
+
+        /* Anime */
+        body.theme-anime {
+            --telegram-blue: #ff6b9d; --bg-dark: #0d0820; --chat-bg: #130a28;
+            --card-bg: #1e1030; --bubble-bot: #130a28; --bubble-user: #2a0850;
+            --text-main: #fff0f8; --success: #00ffcc; --gold: #ffee44;
+        }
+        body.theme-anime .sidebar, body.theme-anime .chat-header, body.theme-anime .chat-input-area { background: #0d0820; }
+
+        /* Matrix */
+        body.theme-matrix {
+            --telegram-blue: #00ff41; --bg-dark: #001400; --chat-bg: #001900;
+            --card-bg: #002200; --bubble-bot: #001900; --bubble-user: #003300;
+            --text-main: #00ff41; --text-muted: #007a1f; --success: #00ff88; --gold: #aaff00;
+            --glass-border: rgba(0,255,65,0.12);
+        }
+        body.theme-matrix .sidebar, body.theme-matrix .chat-header, body.theme-matrix .chat-input-area { background: #001200; }
+        body.theme-matrix .quiz-opt-btn:hover:not(:disabled) { box-shadow: 0 0 10px rgba(0,255,65,0.5); }
+
+        /* ═══ SCHEDULE TIMER MODAL ═══ */
+        .sched-modal { max-width: 400px; text-align: left; }
+        .sched-input {
+            width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border); border-radius: 10px;
+            color: var(--text-main); font-size: 0.9rem; margin-bottom: 10px; outline: none;
+        }
+        .sched-input:focus { border-color: var(--telegram-blue); }
+        #sched-status {
+            font-size: 0.82rem; color: var(--success); margin-top: 6px; min-height: 18px;
+        }
+
+        /* ═══ SHUFFLE ASK MODAL ═══ */
+        .shuffle-opt-btn {
+            display: block; width: 100%; padding: 11px 16px; margin-bottom: 9px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border);
+            color: var(--text-main); border-radius: 10px; cursor: pointer; text-align: left;
+            font-size: 0.9rem; transition: all 0.2s;
+        }
+        .shuffle-opt-btn:hover { background: var(--telegram-blue); border-color: var(--telegram-blue); }
+
         .chat-message.bot {
             align-self: flex-start;
         }
@@ -822,6 +1023,13 @@
                     <div class="sidebar-section-title">🎨 Settings & Themes</div>
                     <button class="menu-btn" onclick="sendMenuCommand('/settings')"><i class="fa-solid fa-gear"></i> /settings</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/wallpaper')"><i class="fa-solid fa-image"></i> /wallpaper</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme cyberpunk')"><i class="fa-solid fa-bolt"></i> Cyberpunk</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme neon')"><i class="fa-solid fa-star"></i> Neon</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme space')"><i class="fa-solid fa-moon"></i> Space</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme galaxy')"><i class="fa-solid fa-circle-dot"></i> Galaxy</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme anime')"><i class="fa-solid fa-fire"></i> Anime</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme matrix')"><i class="fa-solid fa-code"></i> Matrix</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/theme default')"><i class="fa-solid fa-rotate-left"></i> Default Theme</button>
 
                     <div class="sidebar-section-title">🎮 Quiz Playback</div>
                     <button class="menu-btn" onclick="sendMenuCommand('/quiz')"><i class="fa-solid fa-gamepad"></i> /quiz</button>
@@ -833,7 +1041,14 @@
                     <button class="menu-btn" onclick="sendMenuCommand('/fast')"><i class="fa-solid fa-bolt"></i> /fast</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/normal')"><i class="fa-solid fa-arrow-rotate-left"></i> /normal</button>
 
-                    <div class="sidebar-section-title">📊 Analysis & Stats</div>
+                    <div class="sidebar-section-title">&#9889; Special Modes</div>
+                    <button class="menu-btn" onclick="sendMenuCommand('/revise')"><i class="fa-solid fa-rotate"></i> /revise</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/random 5')"><i class="fa-solid fa-stopwatch"></i> /random [x min]</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/survival')"><i class="fa-solid fa-heart"></i> /survival</button>
+                    <button class="menu-btn" onclick="sendMenuCommand('/marathon 20')"><i class="fa-solid fa-person-running"></i> /marathon [x]</button>
+                    <button class="menu-btn" onclick="document.getElementById('sched-modal').classList.add('active')"><i class="fa-solid fa-clock"></i> /timer [schedule]</button>
+
+                    <div class="sidebar-section-title">&#128202; Analysis &amp; Stats</div>
                     <button class="menu-btn" onclick="sendMenuCommand('/stats')"><i class="fa-solid fa-chart-simple"></i> /stats</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/leaderboard')"><i class="fa-solid fa-trophy"></i> /leaderboard</button>
                     <button class="menu-btn" onclick="sendMenuCommand('/result')"><i class="fa-solid fa-clipboard-check"></i> /result</button>
@@ -920,8 +1135,14 @@
             <!-- Chat Viewport Wrapper -->
             <div style="flex-grow: 1; position: relative; overflow: hidden; display: flex; flex-direction: column;">
                 <video id="chat-video-bg" autoplay loop muted playsinline style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; display: none;"></video>
+                <!-- Special mode bar (Blitz / Survival) inside chat area -->
+                <div id="special-mode-bar" style="display:none;align-items:center;gap:12px;background:rgba(245,158,11,0.12);border-bottom:1px solid rgba(245,158,11,0.3);padding:8px 16px;z-index:2;position:relative;">
+                    <span class="smb-label" id="smb-label">&#9889; BLITZ</span>
+                    <span class="smb-val" id="smb-val">5:00</span>
+                    <span class="smb-lives" id="smb-lives"></span>
+                </div>
                 <!-- Chat Message Feed -->
-                <div class="chat-history" id="chat-history" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;">
+                <div class="chat-history" id="chat-history" style="flex:1;position:relative;overflow-y:auto;overflow-x:hidden;">
                     <div class="chat-message bot">
                         <div class="message-bubble">
                             <strong>Telegram Quiz Bot 🤖</strong><br>
@@ -3126,7 +3347,7 @@
             delete: "Delete a quiz by ID",
             help: "Show all available commands",
             features: "View full feature list",
-            stats: "HTML usage statistics",
+            stats: "Open interactive analytics dashboard",
             quiz: "Launch a quiz session",
             stop: "Stop the running quiz",
             pause: "Pause the current quiz",
@@ -3149,7 +3370,13 @@
             settings: "Open Database Settings override modal",
             wallpaper: "Open Chat Wallpaper customization modal",
             wrong: "Start quiz with your incorrectly answered questions",
-            correct: "Start quiz with your correctly answered questions"
+            correct: "Start quiz with your correctly answered questions",
+            revise: "Revision mode — shows only wrong questions from ALL past attempts",
+            "random [x]": "Timed Blitz mode — answer as many as possible in x minutes",
+            survival: "Survival mode — keep answering until 3 wrong answers",
+            "marathon [x]": "Marathon mode — x random questions from all quizzes",
+            "timer [id] [time]": "Schedule a quiz to auto-start at a specific time",
+            "theme [name]": "Switch UI theme: cyberpunk, neon, space, galaxy, anime, matrix, default"
         };
 
         // DOM elements
@@ -3378,7 +3605,7 @@
             const param = args.slice(1).join(' ').trim();
 
             // Status checks
-            if (activeQuiz.running && !['/stop', '/pause', '/resume', '/skip', '/slow', '/fast', '/normal', '/result', '/leaderboard', '/pdf', '/html'].includes(cmd)) {
+            if (activeQuiz.running && !['/stop', '/pause', '/resume', '/skip', '/slow', '/fast', '/normal', '/result', '/leaderboard', '/pdf', '/html', '/stats', '/theme'].includes(cmd)) {
                 printMsg('bot', "⚠️ A quiz is currently active! Please finish it, skip, or send `/stop` to end it before executing other commands.");
                 return;
             }
@@ -3574,12 +3801,7 @@
                     break;
 
                 case '/stats':
-                    printMsg('bot', `📊 <b>System Performance & Usage Stats:</b>\n\n` +
-                                    `• <b>Quizzes Stored:</b> ${quizzesDb.length}\n` +
-                                    `• <b>Total Answers Logged:</b> ${localStats.totalAttempts}\n` +
-                                    `• <b>Correct Responses:</b> ${localStats.totalCorrect}\n` +
-                                    `• <b>Accuracy Rate:</b> ${localStats.totalAttempts ? ((localStats.totalCorrect / localStats.totalAttempts)*100).toFixed(1) : 0}%\n` +
-                                    `• <b>Peak Streak:</b> 🔥 ${localStats.bestStreakOverall}`, true);
+                    openStatsPanel();
                     break;
 
                 case '/quiz':
@@ -3605,6 +3827,55 @@
                     }
                     initiateSubsetQuizFlow(param, 'correct');
                     break;
+
+                case '/revise':
+                    initiateReviseMode();
+                    break;
+
+                case '/random': {
+                    const mins = parseInt(param) || 5;
+                    initiateBlitzMode(mins);
+                    break;
+                }
+
+                case '/survival':
+                    initiateSurvivalMode();
+                    break;
+
+                case '/marathon': {
+                    const mCount = parseInt(param) || 20;
+                    initiateMarathonMode(mCount);
+                    break;
+                }
+
+                case '/timer': {
+                    // /timer [quizId] [time]
+                    const tArgs = param.split(' ');
+                    const tQuizId = tArgs[0];
+                    const tTime = tArgs.slice(1).join(' ');
+                    if (!tQuizId || !tTime) {
+                        document.getElementById('sched-modal').classList.add('active');
+                        printMsg('bot', '⏰ Opening scheduler... Enter Quiz ID and time in the popup.', true);
+                    } else {
+                        scheduleQuiz(tQuizId, tTime);
+                    }
+                    break;
+                }
+
+                case '/theme': {
+                    const themes = ['cyberpunk', 'neon', 'space', 'galaxy', 'anime', 'matrix', 'default'];
+                    const t = param.toLowerCase();
+                    if (!t || !themes.includes(t)) {
+                        printMsg('bot', `🌈 Available themes: <b>${themes.join(', ')}</b><br>Usage: <code>/theme cyberpunk</code>`, true);
+                        break;
+                    }
+                    document.body.className = document.body.className.replace(/theme-\S+/g, '').trim();
+                    if (t !== 'default') document.body.classList.add('theme-' + t);
+                    localStorage.setItem('ui_theme', t);
+                    reinitParticles();
+                    printMsg('bot', `🌈 Theme switched to <b>${t.charAt(0).toUpperCase() + t.slice(1)}</b>!`, true);
+                    break;
+                }
 
                 case '/stop':
                     if (activeQuiz.running) {
@@ -3894,19 +4165,55 @@
             activeQuiz.timerLimit = sec;
             activeQuiz.initialTimerLimit = sec;
             
-            // Hide modal
+            // Hide config modal
             configModal.classList.remove('active');
-            
+
+            // Show shuffle modal (unless it's a special mode that already handled shuffle)
+            if (!activeQuiz._skipShuffleModal) {
+                document.getElementById('shuffle-modal').classList.add('active');
+            } else {
+                activeQuiz._skipShuffleModal = false;
+                _launchAfterShuffle();
+            }
+        }
+
+        function applyShuffleAndStart(mode) {
+            document.getElementById('shuffle-modal').classList.remove('active');
+            // Shuffle questions
+            if (mode === 'questions' || mode === 'both') {
+                activeQuiz.questions = shuffleArray([...activeQuiz.questions]);
+            }
+            // Shuffle options within each question
+            if (mode === 'options' || mode === 'both') {
+                activeQuiz.questions = activeQuiz.questions.map(q => {
+                    const correctText = q.options.find(o => o.isCorrect)?.text;
+                    const shuffled = shuffleArray([...q.options]);
+                    // Re-mark correct after shuffle
+                    shuffled.forEach(o => { o.isCorrect = (o.text === correctText); });
+                    return { ...q, options: shuffled };
+                });
+            }
+            _launchAfterShuffle();
+        }
+
+        function _launchAfterShuffle() {
             if (currentGroup) {
                 if (!currentGroup.isHost) {
                     printMsg('bot', "⚠️ Only the Group Creator can configure and start the quiz!");
                     return;
                 }
-                GroupSyncManager.startQuiz(activeQuiz.id, sec, marksPositive, marksNegative);
+                GroupSyncManager.startQuiz(activeQuiz.id, activeQuiz.timerLimit, marksPositive, marksNegative);
             } else {
-                // Launch game session
                 startActiveQuizSession();
             }
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
         }
 
 
@@ -4016,8 +4323,7 @@
             data.options.forEach((opt, optIdx) => {
                 const btn = document.createElement('button');
                 btn.className = 'quiz-opt-btn';
-                const prefix = String.fromCharCode(65 + optIdx);
-                btn.innerHTML = `<strong>${prefix}</strong> <span>${opt.text}</span>`;
+                btn.innerHTML = `<span>${opt.text}</span>`;
                 btn.onclick = (e) => handleChatQuizAnswer(e, idx, optIdx, btn, optsContainer, card);
                 optsContainer.appendChild(btn);
             });
@@ -4139,6 +4445,13 @@
                 activeQuiz.streak = 0;
 
                 AudioEngine.wrong();
+
+                // Shake the card on wrong answer
+                const wrongCard = document.getElementById('chat-card-' + qIdx);
+                if (wrongCard) {
+                    wrongCard.classList.add('shake-anim');
+                    setTimeout(() => wrongCard.classList.remove('shake-anim'), 500);
+                }
 
                 const correctIdx = data.options.findIndex(o => o.isCorrect);
                 if (correctIdx !== -1) {
@@ -4340,14 +4653,9 @@
                 { label: "Stats 📊", command: "/stats" }
             ]);
 
-            // Victory confetti blast
-            const duration = 2.5 * 1000;
-            const end = Date.now() + duration;
-            (function frame() {
-                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#2481cc', '#ec4899', '#f59e0b'] });
-                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#2481cc', '#ec4899', '#f59e0b'] });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            }());
+            // Victory mega win animation
+            const accuracy2 = totalAttempted > 0 ? (activeQuiz.correct / totalAttempted) * 100 : 0;
+            triggerMegaWin(activeQuiz.score, accuracy2);
         }
 
         // Custom local confetti
@@ -7573,6 +7881,55 @@ function rs(){document.body.style.overflow='hidden';location.reload()}
     <!-- Toast notification element -->
     <div id="kbd-toast"></div>
 
+    <!-- Live Particle Canvas -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Mega Win Overlay -->
+    <div id="mega-win-overlay">
+        <div class="mw-trophy">&#127942;</div>
+        <div class="mw-text" id="mw-title">Quiz Complete!</div>
+        <div class="mw-sub" id="mw-sub">Amazing performance!</div>
+    </div>
+
+    <!-- Stats Dashboard Panel -->
+    <div id="stats-panel">
+        <div class="stats-panel-header">
+            <h2>&#128202; Analytics Dashboard</h2>
+            <button class="stats-close-btn" onclick="closeStatsPanel()">&#10005;</button>
+        </div>
+        <div id="stats-panel-content"></div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div class="overlay-modal" id="sched-modal">
+        <div class="config-card sched-modal">
+            <h3 style="color:var(--telegram-blue);margin-bottom:14px;font-family:'Outfit',sans-serif;">&#9200; Schedule Quiz Auto-Start</h3>
+            <p style="color:var(--text-muted);font-size:0.83rem;margin-bottom:16px;">Set a quiz to auto-launch at a specific time (today).</p>
+            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Quiz ID</label>
+            <input class="sched-input" id="sched-quiz-id" placeholder="e.g. 123456">
+            <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:4px;">Time (24h HH:MM or 7PM)</label>
+            <input class="sched-input" id="sched-time-input" placeholder="e.g. 19:00 or 7PM">
+            <div id="sched-status"></div>
+            <div style="display:flex;gap:10px;margin-top:14px;">
+                <button class="primary-btn" onclick="confirmSchedule()" style="background:linear-gradient(135deg,var(--telegram-blue),#50a2e3);flex:1;">Set Schedule</button>
+                <button class="primary-btn" onclick="document.getElementById('sched-modal').classList.remove('active')" style="background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);flex:1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shuffle Options Modal -->
+    <div class="overlay-modal" id="shuffle-modal">
+        <div class="config-card" style="max-width:380px;text-align:left;">
+            <h3 style="color:var(--telegram-blue);margin-bottom:8px;font-family:'Outfit',sans-serif;">&#128256; Shuffle Options</h3>
+            <p style="color:var(--text-muted);font-size:0.83rem;margin-bottom:16px;">How would you like to shuffle for this quiz?</p>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('none')">No Shuffle - Keep original order</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('questions')">Shuffle Questions only</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('options')">Shuffle Options only</button>
+            <button class="shuffle-opt-btn" onclick="applyShuffleAndStart('both')">Shuffle Both Questions and Options</button>
+            <button class="shuffle-opt-btn" onclick="document.getElementById('shuffle-modal').classList.remove('active')" style="color:var(--danger);border-color:rgba(209,78,78,0.2);">Cancel</button>
+        </div>
+    </div>
+
     <script>
     // ═══════════════════════════════════════════════════════════
     // ⌨️  KEYBOARD SHORTCUT SYSTEM
@@ -7797,6 +8154,617 @@ function rs(){document.body.style.overflow='hidden';location.reload()}
         if (!origSend) { setTimeout(patchPauseResume, 300); return; }
         // sounds are triggered by keyboard handler already; 
         // sidebar buttons will benefit from AudioEngine.click which is already called
+    })();
+
+    // ════════════════════════════════════════════════════════
+    // NEW FEATURES BLOCK
+    // ════════════════════════════════════════════════════════
+
+    // ── Restore saved theme on load ──
+    (function restoreTheme() {
+        const saved = localStorage.getItem('ui_theme');
+        if (saved && saved !== 'default') {
+            document.body.classList.add('theme-' + saved);
+        }
+    })();
+
+    // ── Helper: collect all questions from all quizzes ──
+    function getAllQuestions() {
+        const all = [];
+        quizzesDb.forEach(quiz => {
+            quiz.questions.forEach((q, i) => {
+                all.push({ ...q, _quizId: quiz.id, _quizName: quiz.name, _qIdx: i });
+            });
+        });
+        return all;
+    }
+
+    // ── REVISE MODE ──
+    function initiateReviseMode() {
+        // Gather all wrong questions from ALL quiz attempts stored in localStorage
+        const wrongPool = [];
+        quizzesDb.forEach(quiz => {
+            const rec = localStorage.getItem('quiz_attempt_' + quiz.id);
+            if (rec) {
+                try {
+                    const parsed = JSON.parse(rec);
+                    (parsed.incorrectIndices || []).forEach(idx => {
+                        if (quiz.questions[idx]) {
+                            wrongPool.push({ ...quiz.questions[idx], _quizName: quiz.name });
+                        }
+                    });
+                } catch(e) {}
+            }
+        });
+        if (wrongPool.length === 0) {
+            printMsg('bot', '&#128218; <b>Revision Mode:</b> No wrong answers recorded yet! Play some quizzes first.', true);
+            return;
+        }
+        // Shuffle pool for randomness
+        for (let i = wrongPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [wrongPool[i], wrongPool[j]] = [wrongPool[j], wrongPool[i]];
+        }
+        activeQuiz.id = 'revise';
+        activeQuiz.name = 'Revision Mode (Wrong Questions)';
+        activeQuiz.questions = wrongPool;
+        activeQuiz._skipShuffleModal = true;
+        document.getElementById('config-quiz-title').textContent = 'Revision: ' + wrongPool.length + ' wrong questions';
+        document.getElementById('config-modal').classList.add('active');
+        printMsg('bot', '&#128256; <b>Revision Mode:</b> Found <b>' + wrongPool.length + '</b> wrong questions from past attempts. Configure and start!', true);
+    }
+
+    // ── BLITZ MODE ──
+    let blitzInterval = null;
+    let blitzEndTime = 0;
+    let blitzCount = 0;
+
+    function initiateBlitzMode(minutes) {
+        const allQ = getAllQuestions();
+        if (allQ.length === 0) {
+            printMsg('bot', '&#9888;&#65039; No quizzes found. Create a quiz first!', true);
+            return;
+        }
+        // Shuffle
+        for (let i = allQ.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allQ[i], allQ[j]] = [allQ[j], allQ[i]];
+        }
+        activeQuiz.id = 'blitz';
+        activeQuiz.name = minutes + '-Minute Blitz';
+        activeQuiz.questions = allQ;
+        activeQuiz._blitzMinutes = minutes;
+        activeQuiz._skipShuffleModal = true;
+        document.getElementById('config-quiz-title').textContent = minutes + '-Minute Blitz — Answer as many as you can!';
+        document.getElementById('config-modal').classList.add('active');
+        printMsg('bot', '&#9889; <b>' + minutes + '-Minute Blitz:</b> Random questions from all your quizzes. Timer starts when quiz begins!', true);
+    }
+
+    function startBlitzTimer(minutes) {
+        blitzEndTime = Date.now() + minutes * 60000;
+        blitzCount = 0;
+        const bar = document.getElementById('special-mode-bar');
+        const label = document.getElementById('smb-label');
+        const val = document.getElementById('smb-val');
+        const lives = document.getElementById('smb-lives');
+        if (bar) { bar.style.display = 'flex'; }
+        if (label) label.textContent = 'BLITZ';
+        if (lives) lives.innerHTML = '';
+        blitzInterval = setInterval(() => {
+            const rem = Math.max(0, blitzEndTime - Date.now());
+            const m = Math.floor(rem / 60000);
+            const s = Math.floor((rem % 60000) / 1000);
+            if (val) val.textContent = m + ':' + s.toString().padStart(2, '0');
+            if (rem <= 0) {
+                clearInterval(blitzInterval);
+                if (val) val.textContent = '0:00';
+                if (bar) bar.style.display = 'none';
+                printMsg('bot', 'BLITZ OVER! You answered <b>' + blitzCount + '</b> questions!', true);
+                endQuizSession();
+            }
+        }, 500);
+    }
+
+    // ── SURVIVAL MODE ──
+    let survivalLives = 3;
+    let survivalRun = 0;
+    let survivalBest = 0;
+
+    function initiateSurvivalMode() {
+        const allQ = getAllQuestions();
+        if (allQ.length === 0) {
+            printMsg('bot', '&#9888;&#65039; No quizzes found. Create a quiz first!', true);
+            return;
+        }
+        // Create an infinite pool by looping
+        const bigPool = [];
+        for (let i = 0; i < Math.max(200, allQ.length * 3); i++) {
+            bigPool.push(allQ[i % allQ.length]);
+        }
+        // Shuffle
+        for (let i = bigPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [bigPool[i], bigPool[j]] = [bigPool[j], bigPool[i]];
+        }
+        survivalLives = 3;
+        survivalRun = 0;
+        survivalBest = parseInt(localStorage.getItem('survival_best') || '0');
+        activeQuiz.id = 'survival';
+        activeQuiz.name = 'Survival Mode';
+        activeQuiz.questions = bigPool;
+        activeQuiz._isSurvival = true;
+        activeQuiz._skipShuffleModal = true;
+        document.getElementById('config-quiz-title').textContent = 'Survival Mode — 3 lives, keep going!';
+        document.getElementById('config-modal').classList.add('active');
+        printMsg('bot', '&#10084;&#65039; <b>Survival Mode:</b> Answer until 3 wrong! Best Run: <b>' + survivalBest + '</b>', true);
+    }
+
+    function updateSurvivalBar() {
+        const bar = document.getElementById('special-mode-bar');
+        const label = document.getElementById('smb-label');
+        const val = document.getElementById('smb-val');
+        const lives = document.getElementById('smb-lives');
+        if (bar) bar.style.display = 'flex';
+        if (label) label.textContent = 'SURVIVAL';
+        if (val) val.textContent = 'Run: ' + survivalRun + ' | Best: ' + survivalBest;
+        if (lives) {
+            lives.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const h = document.createElement('span');
+                h.className = 'smb-heart';
+                h.textContent = i < survivalLives ? '\u2764\uFE0F' : '\u{1F5A4}';
+                lives.appendChild(h);
+            }
+        }
+    }
+
+    // ── MARATHON MODE ──
+    function initiateMarathonMode(count) {
+        const allQ = getAllQuestions();
+        if (allQ.length === 0) {
+            printMsg('bot', '&#9888;&#65039; No quizzes found. Create a quiz first!', true);
+            return;
+        }
+        // Shuffle and pick count questions
+        for (let i = allQ.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allQ[i], allQ[j]] = [allQ[j], allQ[i]];
+        }
+        const selected = allQ.slice(0, Math.min(count, allQ.length));
+        activeQuiz.id = 'marathon';
+        activeQuiz.name = 'Marathon (' + selected.length + ' Questions)';
+        activeQuiz.questions = selected;
+        activeQuiz._skipShuffleModal = true;
+        document.getElementById('config-quiz-title').textContent = 'Marathon: ' + selected.length + ' random questions non-stop!';
+        document.getElementById('config-modal').classList.add('active');
+        printMsg('bot', '&#127939; <b>Marathon Mode:</b> <b>' + selected.length + '</b> random questions from all quizzes — non-stop!', true);
+    }
+
+    // ── Patch startActiveQuizSession to init special modes ──
+    (function patchStartForSpecialModes() {
+        const orig = window.startActiveQuizSession;
+        if (!orig) { setTimeout(patchStartForSpecialModes, 300); return; }
+        window.startActiveQuizSession = function() {
+            orig.apply(this, arguments);
+            if (activeQuiz.id === 'blitz' && activeQuiz._blitzMinutes) {
+                startBlitzTimer(activeQuiz._blitzMinutes);
+            }
+            if (activeQuiz._isSurvival) {
+                survivalRun = 0;
+                survivalLives = 3;
+                updateSurvivalBar();
+            }
+        };
+    })();
+
+    // ── Patch handleChatQuizAnswer to handle survival deduction ──
+    (function patchAnswerForSurvival() {
+        const orig = window.handleChatQuizAnswer;
+        if (!orig) { setTimeout(patchAnswerForSurvival, 300); return; }
+        window.handleChatQuizAnswer = function(e, qIdx, optIdx, selectedBtn, container, card) {
+            if (activeQuiz._isSurvival) {
+                const data = activeQuiz.questions[qIdx];
+                const isCorrect = data.options[optIdx].isCorrect;
+                if (!isCorrect) {
+                    survivalLives--;
+                    if (survivalLives < 0) survivalLives = 0;
+                }
+                survivalRun = qIdx + (isCorrect ? 1 : 0);
+                if (survivalRun > survivalBest) {
+                    survivalBest = survivalRun;
+                    localStorage.setItem('survival_best', survivalBest);
+                }
+                updateSurvivalBar();
+                if (survivalLives <= 0) {
+                    orig.apply(this, arguments);
+                    setTimeout(() => {
+                        printMsg('bot', '&#128420; <b>Survival Ended!</b><br>Current Run: <b>' + survivalRun + '</b><br>Best Run: <b>' + survivalBest + '</b>', true);
+                        endQuizSession();
+                    }, 1800);
+                    return;
+                }
+                // Also track blitz answers
+                if (activeQuiz.id === 'blitz') blitzCount++;
+            } else if (activeQuiz.id === 'blitz') {
+                blitzCount++;
+            }
+            orig.apply(this, arguments);
+        };
+    })();
+
+    // ── Clean up special mode bar when quiz ends ──
+    (function patchEndForSpecialModes() {
+        const orig = window.endQuizSession;
+        if (!orig) { setTimeout(patchEndForSpecialModes, 300); return; }
+        window.endQuizSession = function() {
+            if (blitzInterval) { clearInterval(blitzInterval); blitzInterval = null; }
+            const smbBar = document.getElementById('special-mode-bar');
+            if (smbBar) smbBar.style.display = 'none';
+            activeQuiz._isSurvival = false;
+            orig.apply(this, arguments);
+        };
+    })();
+
+    // ══════════════════════════════════════════
+    // MEGA WIN ANIMATION
+    // ══════════════════════════════════════════
+    function triggerMegaWin(score, accuracy) {
+        const overlay = document.getElementById('mega-win-overlay');
+        const title = document.getElementById('mw-title');
+        const sub = document.getElementById('mw-sub');
+        const trophy = overlay.querySelector('.mw-trophy');
+
+        if (accuracy >= 90) {
+            trophy.textContent = '&#127942;';
+            title.textContent = 'Legendary Performance!';
+        } else if (accuracy >= 70) {
+            trophy.textContent = '&#129351;';
+            title.textContent = 'Excellent Work!';
+        } else if (accuracy >= 50) {
+            trophy.textContent = '&#129352;';
+            title.textContent = 'Good Job!';
+        } else {
+            trophy.textContent = '&#127891;';
+            title.textContent = 'Quiz Complete!';
+        }
+        sub.textContent = 'Score: ' + (typeof score === 'number' ? score.toFixed(2) : score) + ' | Accuracy: ' + accuracy.toFixed(1) + '%';
+
+        overlay.classList.add('active');
+
+        // Screen shake
+        document.getElementById('app').classList.add('screen-shake');
+        setTimeout(() => document.getElementById('app').classList.remove('screen-shake'), 500);
+
+        // Confetti burst (existing library)
+        const end = Date.now() + 3000;
+        (function frame() {
+            confetti({ particleCount: 6, angle: 60, spread: 60, origin: { x: 0 }, colors: ['#2481cc','#ec4899','#f59e0b','#4fae5e'] });
+            confetti({ particleCount: 6, angle: 120, spread: 60, origin: { x: 1 }, colors: ['#2481cc','#ec4899','#f59e0b','#4fae5e'] });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        })();
+
+        // Fireworks bursts
+        setTimeout(() => confetti({ particleCount: 120, spread: 120, origin: { y: 0.4 }, colors: ['#f59e0b','#fff','#2481cc'] }), 400);
+        setTimeout(() => confetti({ particleCount: 80, spread: 90, origin: { x: 0.3, y: 0.5 }, colors: ['#ec4899','#f59e0b','#4fae5e'] }), 900);
+        setTimeout(() => confetti({ particleCount: 80, spread: 90, origin: { x: 0.7, y: 0.5 }, colors: ['#2481cc','#fff','#ec4899'] }), 1400);
+
+        // Hide after 4s
+        setTimeout(() => { overlay.classList.remove('active'); }, 4200);
+    }
+
+    // ══════════════════════════════════════════
+    // STATS DASHBOARD PANEL
+    // ══════════════════════════════════════════
+    function openStatsPanel() {
+        const panel = document.getElementById('stats-panel');
+        const content = document.getElementById('stats-panel-content');
+        panel.classList.add('open');
+
+        // Compute stats
+        const totalQ = quizzesDb.reduce((s, q) => s + q.questions.length, 0);
+        const acc = localStats.totalAttempts > 0 ? ((localStats.totalCorrect / localStats.totalAttempts) * 100).toFixed(1) : '0.0';
+        const survBest = localStorage.getItem('survival_best') || '0';
+
+        // Subject detection: scan all questions for keywords
+        const subjects = { Polity: 0, History: 0, Geography: 0, Science: 0, Economy: 0, Environment: 0, Current: 0 };
+        const keywords = {
+            Polity: ['constitution','article','parliament','president','governor','supreme court','high court','lok sabha','rajya sabha','amendment','directive','fundamental right'],
+            History: ['battle','mughal','british','ancient','medieval','dynasty','revolt','independence','ruler','emperor','emperor','war','colonial'],
+            Geography: ['river','mountain','desert','ocean','climate','continent','plateau','peninsula','lake','forest','soil','rainfall','monsoon'],
+            Science: ['atom','molecule','cell','biology','physics','chemistry','element','compound','energy','force','light','dna','virus'],
+            Economy: ['gdp','inflation','bank','rbi','budget','tax','fiscal','monetary','market','trade','import','export','poverty','growth'],
+            Environment: ['species','wildlife','biodiversity','pollution','carbon','ecosystem','ozone','forest','wetland','conservation','climate change'],
+            Current: ['recently','2024','2025','summit','launched','agreement','treaty','initiative','yojana','scheme']
+        };
+
+        quizzesDb.forEach(quiz => {
+            quiz.questions.forEach(q => {
+                const text = (q.question + ' ' + q.explanation).toLowerCase();
+                Object.keys(keywords).forEach(subj => {
+                    if (keywords[subj].some(kw => text.includes(kw))) subjects[subj]++;
+                });
+            });
+        });
+
+        // Gather speed vs accuracy data from localStorage attempt logs
+        const scatterData = [];
+        quizzesDb.forEach(quiz => {
+            const rec = localStorage.getItem('quiz_attempt_' + quiz.id);
+            if (rec) {
+                try {
+                    const p = JSON.parse(rec);
+                    const total = (p.incorrectIndices || []).length + (p.correctIndices || []).length;
+                    const correct = (p.correctIndices || []).length;
+                    if (total > 0) {
+                        scatterData.push({
+                            acc: (correct / total) * 100,
+                            name: quiz.name.substring(0, 12)
+                        });
+                    }
+                } catch(e) {}
+            }
+        });
+
+        // Build HTML
+        const subjectChips = Object.entries(subjects)
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `<span class="subject-chip">${k} (${v})</span>`)
+            .join('') || '<span style="color:var(--text-muted);font-size:0.8rem;">No data yet</span>';
+
+        const maxSubj = Math.max(...Object.values(subjects), 1);
+
+        const subjBarsHtml = Object.entries(subjects)
+            .filter(([, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => {
+                const pct = Math.round((v / totalQ) * 100) || 0;
+                const hue = k === 'Polity' ? '#2481cc' : k === 'History' ? '#ec4899' : k === 'Geography' ? '#4fae5e' : k === 'Science' ? '#f59e0b' : k === 'Economy' ? '#9b59b6' : k === 'Environment' ? '#1abc9c' : '#7f8c8d';
+                return `<div class="stat-row"><div class="stat-label">${k}</div><div class="stat-value" style="color:${hue}">${v}</div></div>
+                        <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:${pct}%;background:${hue};"></div></div>`;
+            }).join('');
+
+        const scatterCanvasId = 'scatter-canvas-' + Date.now();
+
+        content.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-card-title"><i class="fa-solid fa-chart-simple"></i> Overall Performance</div>
+            <div class="stat-row"><div class="stat-label">Total Quizzes</div><div class="stat-value">${quizzesDb.length}</div></div>
+            <div class="stat-row"><div class="stat-label">Total Questions</div><div class="stat-value">${totalQ}</div></div>
+            <div class="stat-row"><div class="stat-label">Answers Given</div><div class="stat-value">${localStats.totalAttempts}</div></div>
+            <div class="stat-row"><div class="stat-label">Correct</div><div class="stat-value" style="color:var(--success)">${localStats.totalCorrect}</div></div>
+            <div class="stat-row"><div class="stat-label">Incorrect</div><div class="stat-value" style="color:var(--danger)">${localStats.totalIncorrect || (localStats.totalAttempts - localStats.totalCorrect)}</div></div>
+            <div class="stat-row"><div class="stat-label">Accuracy</div><div class="stat-value" style="color:var(--gold)">${acc}%</div></div>
+            <div class="mini-bar-wrap" style="margin-top:8px;"><div class="mini-bar-fill" style="width:${acc}%;background:linear-gradient(90deg,var(--danger),var(--gold),var(--success));"></div></div>
+            <div class="stat-row" style="margin-top:8px;"><div class="stat-label">Best Streak</div><div class="stat-value">&#128293; ${localStats.bestStreakOverall}</div></div>
+            <div class="stat-row"><div class="stat-label">Survival Best Run</div><div class="stat-value">&#10084; ${survBest}</div></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-title"><i class="fa-solid fa-book"></i> Subject Breakdown (auto-detected)</div>
+            ${subjBarsHtml || '<div style="color:var(--text-muted);font-size:0.82rem;">Play quizzes to see subject breakdown</div>'}
+            <div style="margin-top:10px;">${subjectChips}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-title"><i class="fa-solid fa-scatter-chart"></i> Speed vs Accuracy (per quiz)</div>
+            <canvas id="${scatterCanvasId}" class="scatter-canvas" width="400" height="160"></canvas>
+            <div class="speed-accuracy-label">Each dot = one quiz attempt (bigger circle = more attempted)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-title"><i class="fa-solid fa-list"></i> Quiz Library</div>
+            ${quizzesDb.length === 0 ? '<div style="color:var(--text-muted);font-size:0.82rem;">No quizzes created yet.</div>' : quizzesDb.map(q => `<div class="stat-row"><div class="stat-label">${q.name}</div><div class="stat-value">${q.questions.length}Q</div></div>`).join('')}
+        </div>`;
+
+        // Draw scatter plot
+        setTimeout(() => {
+            const canvas = document.getElementById(scatterCanvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.offsetWidth; const H = 160;
+            canvas.width = W; canvas.height = H;
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(0, 0, W, H);
+            // Axes
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(30, 10); ctx.lineTo(30, H-24); ctx.lineTo(W-10, H-24); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '9px Inter'; ctx.textAlign = 'center';
+            ctx.fillText('Accuracy %', W/2, H-4);
+            ctx.save(); ctx.translate(12, H/2); ctx.rotate(-Math.PI/2); ctx.fillText('Score', 0, 0); ctx.restore();
+            if (scatterData.length === 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.textAlign = 'center'; ctx.font = '11px Inter';
+                ctx.fillText('Complete quizzes to see scatter plot', W/2, H/2);
+                return;
+            }
+            scatterData.forEach((d, i) => {
+                const x = 30 + (d.acc / 100) * (W - 45);
+                const y = (H-24) - ((i+1) / scatterData.length) * (H - 40);
+                const hue = d.acc > 75 ? '#4fae5e' : d.acc > 50 ? '#f59e0b' : '#d14e4e';
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = hue + 'cc';
+                ctx.fill();
+                ctx.strokeStyle = hue;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '8px Inter'; ctx.textAlign = 'center';
+                ctx.fillText(d.name, x, y - 9);
+            });
+        }, 80);
+    }
+
+    function closeStatsPanel() {
+        document.getElementById('stats-panel').classList.remove('open');
+    }
+
+    // ══════════════════════════════════════════
+    // QUIZ SCHEDULER
+    // ══════════════════════════════════════════
+    const scheduledTimers = [];
+
+    function confirmSchedule() {
+        const qId = document.getElementById('sched-quiz-id').value.trim();
+        const timeStr = document.getElementById('sched-time-input').value.trim();
+        const status = document.getElementById('sched-status');
+        if (!qId || !timeStr) { status.textContent = 'Please fill both fields.'; return; }
+        const result = scheduleQuiz(qId, timeStr);
+        if (result) {
+            status.textContent = '✓ Scheduled! Quiz will auto-start at ' + result;
+            setTimeout(() => document.getElementById('sched-modal').classList.remove('active'), 2000);
+        } else {
+            status.textContent = '⚠️ Invalid time format or quiz not found.';
+        }
+    }
+
+    function scheduleQuiz(quizId, timeStr) {
+        const quiz = quizzesDb.find(q => q.id === quizId);
+        if (!quiz) { printMsg('bot', '&#10060; Quiz ID <code>' + quizId + '</code> not found!', true); return null; }
+
+        // Parse time: "19:00", "7PM", "7:30PM", "07:30"
+        let hours = -1, mins = 0;
+        const match24 = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+        const match12 = timeStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+        if (match24) {
+            hours = parseInt(match24[1]); mins = parseInt(match24[2]);
+        } else if (match12) {
+            hours = parseInt(match12[1]); mins = match12[2] ? parseInt(match12[2]) : 0;
+            if (match12[3].toUpperCase() === 'PM' && hours < 12) hours += 12;
+            if (match12[3].toUpperCase() === 'AM' && hours === 12) hours = 0;
+        }
+        if (hours < 0 || hours > 23) return null;
+
+        const now = new Date();
+        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, mins, 0);
+        if (target <= now) target.setDate(target.getDate() + 1);
+        const ms = target - now;
+
+        const label = hours.toString().padStart(2,'0') + ':' + mins.toString().padStart(2,'0');
+        printMsg('bot', '&#9200; <b>Quiz Scheduled!</b><br><b>' + quiz.name + '</b> will auto-start at <b>' + label + '</b> (in ' + Math.round(ms/60000) + ' min).', true);
+
+        const t = setTimeout(() => {
+            printMsg('bot', '&#9200; <b>Scheduled Start!</b> Launching <b>' + quiz.name + '</b> now!', true);
+            initiateQuizFlow(quizId);
+        }, ms);
+        scheduledTimers.push(t);
+        return label;
+    }
+
+    // ══════════════════════════════════════════
+    // LIVE PARTICLE BACKGROUND
+    // ══════════════════════════════════════════
+    let particleAnimFrame = null;
+    const particles = [];
+    const PARTICLE_TYPES = ['star','gem','spark','energy'];
+
+    function initParticles() {
+        const canvas = document.getElementById('particle-canvas');
+        if (!canvas) return;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        particles.length = 0;
+        for (let i = 0; i < 40; i++) {
+            spawnParticle(canvas);
+        }
+        if (particleAnimFrame) cancelAnimationFrame(particleAnimFrame);
+        animateParticles();
+    }
+
+    function spawnParticle(canvas) {
+        const types = ['star','gem','spark','energy'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const glyphs = { star: '&#10022;', gem: '&#9830;', spark: '&#10022;', energy: '&#9889;' };
+        particles.push({
+            x: Math.random() * (canvas || document.getElementById('particle-canvas')).width,
+            y: Math.random() * (canvas || document.getElementById('particle-canvas')).height,
+            vx: (Math.random() - 0.5) * 0.4,
+            vy: -(Math.random() * 0.5 + 0.1),
+            size: Math.random() * 10 + 8,
+            alpha: Math.random() * 0.5 + 0.2,
+            type: type,
+            glyph: glyphs[type],
+            life: Math.random() * 200 + 100,
+            maxLife: 300
+        });
+    }
+
+    function animateParticles() {
+        const canvas = document.getElementById('particle-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const colors = {
+            star: '#f59e0b', gem: '#2481cc', spark: '#ec4899', energy: '#4fae5e'
+        };
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy; p.life--;
+            const fade = p.life < 60 ? (p.life / 60) : 1;
+            ctx.globalAlpha = p.alpha * fade;
+            ctx.fillStyle = colors[p.type] || '#fff';
+            ctx.font = p.size + 'px serif';
+            ctx.fillText(p.type === 'star' ? '&#x2726;' : p.type === 'gem' ? '&#x25C6;' : p.type === 'spark' ? '&#x2728;' : '&#x26A1;', p.x, p.y);
+            if (p.life <= 0) {
+                particles.splice(i, 1);
+                spawnParticle(canvas);
+            }
+        }
+        ctx.globalAlpha = 1;
+        particleAnimFrame = requestAnimationFrame(animateParticles);
+    }
+
+    function reinitParticles() {
+        initParticles();
+    }
+
+    window.addEventListener('resize', () => {
+        const canvas = document.getElementById('particle-canvas');
+        if (canvas) { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    });
+
+    // ── Use Unicode via textContent instead of HTML entities ──
+    (function fixParticleGlyphs() {
+        // We'll use direct Unicode characters for particles
+        const canvas = document.getElementById('particle-canvas');
+        if (!canvas) { setTimeout(fixParticleGlyphs, 200); return; }
+        particles.length = 0;
+        const glyphMap = ['&#9733;', '&#9830;', '&#10024;', '&#9889;'];
+        for (let i = 0; i < 40; i++) {
+            const type = PARTICLE_TYPES[i % 4];
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: -(Math.random() * 0.45 + 0.1),
+                char: ['★', '♦', '✨', '⚡'][i % 4],
+                color: ['#f59e0b', '#2481cc', '#ec4899', '#4fae5e'][i % 4],
+                size: Math.random() * 10 + 8,
+                alpha: Math.random() * 0.45 + 0.15,
+                life: Math.random() * 200 + 100,
+                type
+            });
+        }
+        if (particleAnimFrame) cancelAnimationFrame(particleAnimFrame);
+        (function loopParticles() {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                const fade = p.life < 60 ? (p.life / 60) : 1;
+                ctx.globalAlpha = p.alpha * fade;
+                ctx.fillStyle = p.color;
+                ctx.font = p.size + 'px serif';
+                ctx.fillText(p.char, p.x, p.y);
+                if (p.life <= 0 || p.y < -20) {
+                    p.x = Math.random() * canvas.width;
+                    p.y = canvas.height + 10;
+                    p.life = Math.random() * 200 + 100;
+                    p.vx = (Math.random() - 0.5) * 0.35;
+                    p.vy = -(Math.random() * 0.45 + 0.1);
+                }
+            }
+            ctx.globalAlpha = 1;
+            particleAnimFrame = requestAnimationFrame(loopParticles);
+        })();
     })();
 
     </script>
